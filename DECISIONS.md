@@ -263,6 +263,103 @@ Design system is fully specified in `PRD.md §8`.
 - Must source fonts via `@expo-google-fonts` — not system fonts
 - Sector tag color map is canonical (see `PRD.md §8.2`) — never deviate
 
+
+
+## ADR-010 — Drop Reddit PRAW for MVP; Reweight to Repetition 70% / Google Trends 30%
+
+**Date:** 2026-04-08
+**Status:** ✅ Accepted
+**Decider:** Astha (PM) — 2-week sprint feasibility decision
+
+**Context:**
+Feasibility analysis (FEASIBILITY.md) showed Reddit PRAW integration costs ~1.5 days:
+OAuth app setup, credential management, query normalization, and rate-limit handling.
+Reddit only contributed 22.5% of the trend signal. The 2-week sprint target requires
+eliminating the highest-cost / lowest-value items.
+
+**Decision:**
+Remove Reddit PRAW from MVP entirely.
+Revise trend score weights: repetition 70%, Google Trends 30%.
+Reddit re-added in V1.1 as an enhancement.
+
+**Previous weights:**
+- Repetition 55%, Reddit 22.5%, Google Trends 22.5%
+
+**New weights:**
+- Repetition 70%, Google Trends 30%
+
+**Rationale:**
+- Saves 1.5 days — the single biggest time win in the sprint
+- Google Trends already captures social discourse signal adequately
+- Reddit OAuth adds credential complexity with minimal PMF impact
+- Trend scoring with 2 signals is simpler, more maintainable, easier to test
+
+**Consequences:**
+- `pipeline/step3_score.py` needs no PRAW dependency
+- `.env` has no Reddit credentials for MVP
+- Trend scores will be slightly less socially-weighted (acceptable)
+- V1.1: Add PRAW back with ADR superseding this one
+
+**Superseded by:** — (open)
+
+---
+
+## ADR-011 — SkeletonCard Deferred; Use ActivityIndicator for Loading State
+
+**Date:** 2026-04-08
+**Status:** ✅ Accepted
+**Decider:** Astha (PM) — 2-week sprint feasibility decision
+
+**Context:**
+SkeletonCard with shimmer animation (expo-linear-gradient) costs ~1 day to implement
+correctly. It's a polish feature, not functional. Loading state is visible for < 500ms
+on cached data — nearly imperceptible.
+
+**Decision:**
+Replace SkeletonCard with React Native's built-in `ActivityIndicator` (centered spinner).
+SkeletonCard added back in V1.1.
+
+**Rationale:**
+- Saves 1 day with zero UX regression for the MVP testing audience
+- ActivityIndicator is native, matches OS style, requires 3 lines of code
+- The EventCard design, content, and all real UX is completely unchanged
+
+**Consequences:**
+- `mobile/components/SkeletonCard.tsx` is NOT created in MVP
+- HomeScreen uses `ActivityIndicator` for loading state
+- V1.1: Add SkeletonCard; replace ActivityIndicator
+
+**Superseded by:** — (open)
+
+---
+
+## ADR-012 — Expo Go Distribution Instead of TestFlight for 2-Week Demo
+
+**Date:** 2026-04-08
+**Status:** ✅ Accepted
+**Decider:** Astha (PM) — 2-week sprint feasibility decision
+
+**Context:**
+TestFlight submission requires: Apple Developer account ($99/yr), app binary build,
+Apple review (1–3 days), tester invitation flow. This is bureaucratic overhead, not
+engineering work. Costs ~0.5 day and introduces external dependency (Apple review).
+
+**Decision:**
+Deliver 2-week demo via Expo Go QR code (shareable link).
+TestFlight / App Store submission happens post-PMF validation.
+
+**Rationale:**
+- Expo Go is production-quality for stakeholder demos and early user testing
+- Zero Apple dependency; share a QR and anyone with Expo Go can test immediately
+- Saves 0.5 day + removes an external blocking dependency
+
+**Consequences:**
+- Testers must have Expo Go installed (minor friction)
+- App cannot be distributed to non-technical users until TestFlight/App Store
+- V1.1: Build production binary + TestFlight when ready to expand testing
+
+**Superseded by:** — (open)
+
 ---
 
 ## Template for New ADRs

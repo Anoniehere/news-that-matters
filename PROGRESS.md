@@ -21,23 +21,51 @@ At the end of each session:
 ```
 ▶ ACTIVE MILESTONE:  M1 — RSS Fetch + Article Clustering
   Start date:        Not started
-  Target complete:   Day 3
+  Target complete:   Day 1  (2-week sprint plan)
   Blocking anything: M2, M3, M4, M5, M6, M7 (all depend on M1)
 ```
 
 ---
 
+## 2-Week Sprint Plan  ← ACTIVE PLAN
+
+> Feasibility analysis in FEASIBILITY.md. 3 scope cuts applied (ADR-010, 011, 012).
+> Reddit dropped → weights now: Repetition 70% / Google Trends 30%.
+> Skeleton → ActivityIndicator. TestFlight → Expo Go QR.
+
+### Week 1 — Backend (Days 1–5)
+
+| Day | Milestone | Deliverable |
+|-----|-----------|-------------|
+| 1 | M1 | `step1_fetch.py` + `step2_cluster.py` → `clusters.json` ✓ |
+| 2 | M2 | `step3_score.py` (rep + pytrends only) → `ranked_clusters.json` ✓ |
+| 3 | M3a | `step4_enrich.py` + `schemas.py` → first `brief.json` |
+| 4 | M3b | Prompt iteration + guardrail tests → `brief.json` passing ✓ |
+| 5 | M4 | FastAPI + SQLite + scheduler + tests → API live on Railway ✓ |
+
+### Week 2 — Mobile (Days 6–10)
+
+| Day | Milestone | Deliverable |
+|-----|-----------|-------------|
+| 6 | M5a | Expo scaffold + EventCard + SectorTag + TrendBar |
+| 7 | M5b | HomeScreen + FlatList + API integration + loading state ✓ |
+| 8 | M6 | ArticleListScreen + ArticleItem + DateGroupHeader + nav ✓ |
+| 9 | QA | Device testing + 50-run LLM red-team + contrast check |
+| 10 | Bufr | Fix slippage · final API URL · share Expo Go QR 🚀 |
+
+---
+
 ## Milestone Status
 
-| # | Milestone | Status | Days | Started | Completed |
-|---|-----------|--------|------|---------|-----------|
-| M1 | RSS Fetch + Cluster | 🔲 Not started | 1–3 | — | — |
-| M2 | Trend Scoring | 🔲 Not started | 4–6 | — | — |
-| M3 | LLM Enrichment | 🔲 Not started | 7–10 | — | — |
-| M4 | API + Cache + Scheduler | 🔲 Not started | 11–14 | — | — |
-| M5 | Mobile Home Screen | 🔲 Not started | 15–19 | — | — |
-| M6 | Article List Screen | 🔲 Not started | 20–22 | — | — |
-| M7 | Deploy + QA | 🔲 Not started | 23–27 | — | — |
+| # | Milestone | Status | Sprint Day | Started | Completed |
+|---|-----------|--------|------------|---------|-----------|
+| M1 | RSS Fetch + Cluster | 🔲 Not started | Day 1 | — | — |
+| M2 | Trend Scoring (rep + pytrends) | 🔲 Not started | Day 2 | — | — |
+| M3 | LLM Enrichment | 🔲 Not started | Days 3–4 | — | — |
+| M4 | API + Cache + Scheduler | 🔲 Not started | Day 5 | — | — |
+| M5 | Mobile Home Screen | 🔲 Not started | Days 6–7 | — | — |
+| M6 | Article List Screen | 🔲 Not started | Day 8 | — | — |
+| M7 | Deploy + QA | 🔲 Not started | Days 9–10 | — | — |
 
 **Status legend:** 🔲 Not started | 🔄 In progress | ✅ Done | 🚧 Blocked
 
@@ -196,17 +224,24 @@ At the end of each session:
 ## Next Session: Start Here
 
 ```
-[ Nothing in progress yet. ]
+► START M1 — Day 1 of 10.
 
-To start M1, tell the AI:
-  "Let's start M1. Read CONTEXT.md and AGENTS.md first,
-   then build pipeline/step1_fetch.py and step2_cluster.py."
+Setup (do this first — ~45 min):
+  1. mkdir pipeline output scripts models tests && touch .env
+  2. uv venv && source .venv/bin/activate
+  3. uv pip install fastapi uvicorn apscheduler sentence-transformers \
+       scikit-learn feedparser pytrends groq pydantic sqlmodel python-dotenv \
+       --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/\
+externa-pypi/simple --allow-insecure-host pypi.ci.artifacts.walmart.com
+  4. Add to .env:  GROQ_API_KEY=gsk_...
+  5. Get Groq key free at https://console.groq.com (no credit card)
 
-Setup you'll need first:
-  1. uv venv + install deps (see CONTEXT.md Quick Commands)
-  2. Create .env file (see AGENTS.md Environment Variables)
-  3. Get Reddit API credentials: https://www.reddit.com/prefs/apps
-  4. Get Groq API key: https://console.groq.com (free, no CC required)
+Then build:
+  pipeline/step1_fetch.py   ← RSS fetch from 5 Google News feeds
+  pipeline/step2_cluster.py ← embeddings + DBSCAN
+  scripts/test_m1.py        ← smoke test; outputs output/clusters.json
+
+Done when: python scripts/test_m1.py prints ≥20 articles in ≥3 clusters.
 ```
 
 ---
@@ -227,6 +262,9 @@ Setup you'll need first:
 | 2026-04-08 | X + LinkedIn signals dropped; replaced by Google Trends | ADR-003 | Trend weights revised |
 | 2026-04-08 | Show top 5 (not top 3) to users | ADR-001 context | Pipeline buffer = top 7 |
 | 2026-04-08 | API returns ALL articles; UI controls display | ADR-007 | display_order field removed |
+| 2026-04-08 | **Reddit PRAW dropped for MVP** | ADR-010 | Weights → rep 70%, gtrends 30% |
+| 2026-04-08 | **SkeletonCard → ActivityIndicator for MVP** | ADR-011 | M5 simpler; polish in V1.1 |
+| 2026-04-08 | **TestFlight → Expo Go QR for 2-week demo** | ADR-012 | No Apple review dependency |
 
 ---
 

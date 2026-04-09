@@ -18,18 +18,19 @@ No login. No social feed. No noise. Pure signal.
 
 ## Current State
 
-> ⚠️ **PRE-CODE** — All milestones are unstarted as of 2026-04-08.
+> ⚠️ **PRE-CODE** — All milestones unstarted as of 2026-04-08.
+> **2-week sprint plan active.** See FEASIBILITY.md for the full analysis.
 > Update `PROGRESS.md` after every session.
 
-| Milestone | Status |
-|-----------|--------|
-| M1 — RSS Fetch + Cluster | 🔲 Not started |
-| M2 — Trend Scoring | 🔲 Not started |
-| M3 — LLM Enrichment | 🔲 Not started |
-| M4 — API + Cache + Scheduler | 🔲 Not started |
-| M5 — Mobile Home Screen | 🔲 Not started |
-| M6 — Article List Screen | 🔲 Not started |
-| M7 — Deploy + QA | 🔲 Not started |
+| Milestone | Status | Sprint Day |
+|-----------|--------|------------|
+| M1 — RSS Fetch + Cluster | 🔲 Not started | Day 1 |
+| M2 — Trend Scoring | 🔲 Not started | Day 2 |
+| M3 — LLM Enrichment | 🔲 Not started | Days 3–4 |
+| M4 — API + Cache + Scheduler | 🔲 Not started | Day 5 |
+| M5 — Mobile Home Screen | 🔲 Not started | Days 6–7 |
+| M6 — Article List Screen | 🔲 Not started | Day 8 |
+| M7 — Deploy + QA | 🔲 Not started | Days 9–10 |
 
 **Current focus:** → Start M1. See `PROGRESS.md` for exit criteria.
 
@@ -122,7 +123,7 @@ signal-brief/
 - **Hardcoded persona** for MVP — Silicon Valley professional archetype (see `PRD.md §3.1`).
 - **Top 5 events shown** to users; pipeline computes top 7 as buffer.
 - **All articles in API response**, sorted newest → oldest (UI caps display, not the API).
-- **Trend weights:** repetition 55%, Reddit 22.5%, Google Trends 22.5%. Do not change without logging in `DECISIONS.md`.
+- **Trend weights:** repetition 70%, Google Trends 30%. Reddit deferred to V1.1 (ADR-010). Do not change without logging in `DECISIONS.md`.
 - **LLM temp = 0.3.** Lower is better for factuality. Never raise above 0.5.
 - **No financial advice.** Guardrail in system prompt + UI disclaimer. Non-negotiable.
 

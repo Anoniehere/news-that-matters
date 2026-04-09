@@ -25,7 +25,7 @@ new article timeline screen; added Section 8 — UX & Frontend Design Specs.
 | Platform      | Mobile App — iOS + Android (React Native / Expo) |
 | Target Users  | Working professionals, 28–45, US Silicon Valley |
 | Business Model | Focus on PMF first; monetization TBD |
-| MVP Timeline  | 5 weeks / 7 milestones (see Section 13) |
+| MVP Timeline  | **10 days / 7 milestones** (2-week sprint — see §13 + FEASIBILITY.md) |
 
 ---
 
@@ -124,15 +124,14 @@ Step 2: CLUSTER
   → Output: clusters[ {articles[], centroid_embedding, cluster_id} ]
 
 Step 3: TREND SCORE
-  → Weights (revised from original spec):
-    - repetition_score  55%  → cluster article count / total articles (normalised)
-    - reddit_score      22.5%→ PRAW search; normalise upvotes + comments, top 5 posts
-    - google_trends     22.5%→ pytrends 7-day interest score, normalised 0–100
-  → trend_score = 0.55*rep + 0.225*reddit + 0.225*gtrends
+  → Weights (revised — see ADR-003, ADR-010):
+    - repetition_score  70%  → cluster article count / total articles (normalised)
+    - google_trends     30%  → pytrends 7-day interest score, normalised 0–100
+  → trend_score = 0.70*rep + 0.30*gtrends
   → Sort descending; take top 7 (buffer) → pass top 5 to LLM
 
-  NOTE: Original spec had X 15% + LinkedIn 15%; both deferred (X=$100+/mo,
-  LinkedIn has no search API). Weights redistributed equally to Reddit/Trends.
+  NOTE: Reddit (PRAW) deferred to V1.1 (ADR-010: saves 1.5 days in 2-week sprint).
+  Original spec also had X + LinkedIn; both dropped (ADR-003: no viable free APIs).
 
 Step 4: LLM ENRICHMENT  (Groq, llama-3.3-70b-versatile, per event)
   → Single structured call per cluster; temperature = 0.3
@@ -847,15 +846,15 @@ Splash Screen:
 
 ### Milestone Summary Table
 
-| Milestone | Days | Artifact | Key Test |
-|-----------|------|----------|----------|
-| M1 — Fetch + Cluster | 1–3 | `clusters.json` | ≥20 articles, ≥3 clusters |
-| M2 — Trend Scoring | 4–6 | `ranked_clusters.json` | Scores in [0,1]; top 7 identified |
-| M3 — LLM Enrichment | 7–10 | `brief.json` | Schema valid; no hallucinations |
-| M4 — API + Cache | 11–14 | `/brief` endpoint live | <500ms response; stale fallback works |
-| M5 — Home Screen | 15–19 | Expo Go app | 5 cards render with full content |
-| M6 — Article Screen | 20–22 | Full tap flow | Articles sorted by recency; browser opens |
-| M7 — Deploy + QA | 23–27 | TestFlight + prod URL | E2E passes; 0 hallucinations in 50 runs |
+| Milestone | Sprint Day | Artifact | Key Test |
+|-----------|------------|----------|----------|
+| M1 — Fetch + Cluster | Day 1 | `clusters.json` | ≥20 articles, ≥3 clusters |
+| M2 — Trend Scoring | Day 2 | `ranked_clusters.json` | Scores in [0,1]; top 7 identified |
+| M3 — LLM Enrichment | Days 3–4 | `brief.json` | Schema valid; 0 hallucinations |
+| M4 — API + Cache | Day 5 | `/brief` live on Railway | <500ms; stale fallback works |
+| M5 — Home Screen | Days 6–7 | Expo Go app | 5 cards render with full content |
+| M6 — Article Screen | Day 8 | Full tap flow | Articles sorted by recency |
+| M7 — Deploy + QA | Days 9–10 | Expo Go QR + prod URL | E2E passes; 0 financial advice outputs |
 
 ---
 
