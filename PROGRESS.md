@@ -19,10 +19,10 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M1 — RSS Fetch + Article Clustering
+▶ ACTIVE MILESTONE:  M2 — Trend Scoring (repetition + pytrends)
   Start date:        Not started
-  Target complete:   Day 1  (2-week sprint plan)
-  Blocking anything: M2, M3, M4, M5, M6, M7 (all depend on M1)
+  Target complete:   Day 2  (2-week sprint plan)
+  Blocking anything: M3, M4, M5, M6, M7
 ```
 
 ---
@@ -59,7 +59,7 @@ At the end of each session:
 
 | # | Milestone | Status | Sprint Day | Started | Completed |
 |---|-----------|--------|------------|---------|-----------|
-| M1 | RSS Fetch + Cluster | 🔲 Not started | Day 1 | — | — |
+| M1 | RSS Fetch + Cluster | ✅ Done | Day 1 | 2026-04-09 | 2026-04-09 |
 | M2 | Trend Scoring (rep + pytrends) | 🔲 Not started | Day 2 | — | — |
 | M3 | LLM Enrichment | 🔲 Not started | Days 3–4 | — | — |
 | M4 | API + Cache + Scheduler | 🔲 Not started | Day 5 | — | — |
@@ -264,7 +264,7 @@ Done when: python scripts/test_m1.py prints ≥20 articles in ≥3 clusters.
 | 2026-04-08 | API returns ALL articles; UI controls display | ADR-007 | display_order field removed |
 | 2026-04-08 | **Reddit PRAW dropped for MVP** | ADR-010 | Weights → rep 70%, gtrends 30% |
 | 2026-04-08 | **SkeletonCard → ActivityIndicator for MVP** | ADR-011 | M5 simpler; polish in V1.1 |
-| 2026-04-08 | **TestFlight → Expo Go QR for 2-week demo** | ADR-012 | No Apple review dependency |
+| 2026-04-09 | **TF-IDF fallback for embeddings (HF DNS blocked on Walmart net)** | ADR-013 | Auto-fallback; prod uses neural |
 
 ---
 

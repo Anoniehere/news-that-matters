@@ -24,7 +24,7 @@ No login. No social feed. No noise. Pure signal.
 
 | Milestone | Status | Sprint Day |
 |-----------|--------|------------|
-| M1 — RSS Fetch + Cluster | 🔲 Not started | Day 1 |
+| M1 — RSS Fetch + Cluster | ✅ Done | Day 1 |
 | M2 — Trend Scoring | 🔲 Not started | Day 2 |
 | M3 — LLM Enrichment | 🔲 Not started | Days 3–4 |
 | M4 — API + Cache + Scheduler | 🔲 Not started | Day 5 |
@@ -32,7 +32,7 @@ No login. No social feed. No noise. Pure signal.
 | M6 — Article List Screen | 🔲 Not started | Day 8 |
 | M7 — Deploy + QA | 🔲 Not started | Days 9–10 |
 
-**Current focus:** → Start M1. See `PROGRESS.md` for exit criteria.
+**Current focus:** → M2 (trend scoring). See `PROGRESS.md` for exit criteria.
 
 ---
 

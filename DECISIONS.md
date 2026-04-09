@@ -362,6 +362,46 @@ TestFlight / App Store submission happens post-PMF validation.
 
 ---
 
+## ADR-013 — TF-IDF Fallback for Embeddings on Walmart Network
+
+**Date:** 2026-04-09
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (auto-detected, confirmed by Astha)
+
+**Context:**
+huggingface.co is unreachable on Walmart Eagle WiFi / VPN (DNS blocked).
+sentence-transformers all-MiniLM-L6-v2 cannot be downloaded.
+Model is not cached from prior runs. Neural embeddings fail at runtime.
+
+**Decision:**
+step2_cluster.py implements two-tier embedding with automatic fallback:
+  1. Try sentence-transformers neural embeddings (best quality, HF required)
+  2. On failure: fall back to TF-IDF (scikit-learn, zero external dependencies)
+
+For production deployment (where HF is reachable): neural embeddings are used.
+For development on Walmart network: TF-IDF is used automatically.
+No code change required to switch — fallback is detected at runtime.
+
+**TF-IDF Config:**
+  - max_features=8000, ngram_range=(1,2), stop_words=english, sublinear_tf=True
+  - L2-normalised output; DBSCAN with euclidean metric (= cosine on unit vectors)
+  - eps=1.0 base (cosine_sim > 0.5 threshold); auto-retry up to eps*2.0
+
+**Why TF-IDF works for news clustering:**
+Same-event news articles share proper nouns (names, tickers, legislation IDs).
+These exact vocabulary overlaps are strong TF-IDF signal. In short RSS snippets,
+TF-IDF bigrams outperform neural models that shine on longer text.
+
+**Consequences:**
+- On Walmart dev machines: TF-IDF runs, no model download needed
+- On Railway/Render production: neural embeddings run after model downloads
+- V1.1: Add local model caching via $HF_HOME for Walmart devs
+- Clustering quality: comparable for news, potentially better on short snippets
+
+**Superseded by:** — (open)
+
+---
+
 ## Template for New ADRs
 
 ```markdown
