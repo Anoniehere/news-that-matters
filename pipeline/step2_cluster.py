@@ -29,8 +29,11 @@ from models.schemas import Article, Cluster, ClusterResult, FetchResult
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
-EMBED_MODEL   = "all-MiniLM-L6-v2"
-EPS_NEURAL    = 0.35   # cosine distance threshold for neural embeddings
+EMBED_MODEL        = "all-MiniLM-L6-v2"
+EMBED_MODEL_LOCAL  = Path.home() / ".cache" / "signal-brief" / "models" / "all-MiniLM-L6-v2"
+EPS_NEURAL    = 0.65   # starting threshold for neural embeddings on RSS snippets
+                       # math: eps=0.65 → cosine_sim > 0.79 on L2-norm vectors
+                       # (short RSS titles need looser threshold than full-doc models)
 EPS_TFIDF     = 1.00   # TF-IDF on L2-norm: eps=1.0 → cosine_sim > 0.5
                        # math: eps = sqrt(2*(1-cos_sim)) on unit vectors
 MIN_SAMPLES   = 2
@@ -41,12 +44,27 @@ MIN_SAMPLES   = 2
 # ---------------------------------------------------------------------------
 
 def _embed_neural(texts: list[str]) -> tuple[np.ndarray, float]:
-    """Return L2-normalised neural embeddings + recommended eps."""
+    """
+    Return L2-normalised neural embeddings + recommended eps.
+
+    Model resolution order:
+      1. Local cache at ~/.cache/signal-brief/models/all-MiniLM-L6-v2
+         (assembled by scripts/download_model.py — works on Walmart network)
+      2. HuggingFace Hub download (works on open internet / production)
+    """
     import ssl
-    ssl._create_default_https_context = ssl._create_unverified_context  # Walmart proxy
+    ssl._create_default_https_context = ssl._create_unverified_context
 
     from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer(EMBED_MODEL)
+
+    if EMBED_MODEL_LOCAL.exists() and (EMBED_MODEL_LOCAL / "model.safetensors").exists():
+        model_path = str(EMBED_MODEL_LOCAL)
+        log.info("Step 2: Loading neural model from local cache: %s", model_path)
+    else:
+        model_path = EMBED_MODEL
+        log.info("Step 2: Loading neural model from HuggingFace Hub: %s", model_path)
+
+    model = SentenceTransformer(model_path)
     emb = model.encode(texts, batch_size=32, show_progress_bar=False)
     return normalize(emb, norm="l2"), EPS_NEURAL
 

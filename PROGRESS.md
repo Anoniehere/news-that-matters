@@ -23,6 +23,13 @@ At the end of each session:
   Start date:        Not started
   Target complete:   Day 2  (2-week sprint plan)
   Blocking anything: M3, M4, M5, M6, M7
+
+M1 completed with neural embeddings active:
+  - Model: all-MiniLM-L6-v2 (87MB)
+  - Cache: ~/.cache/signal-brief/models/all-MiniLM-L6-v2/
+  - Download script: python scripts/download_model.py
+  - Verification: 18.3× discrimination ratio (Fed↔Fed: 0.65 vs Fed↔SpaceX: 0.04)
+  - Final test: 282 articles, 7 neural clusters, 10.6s runtime
 ```
 
 ---
@@ -265,6 +272,7 @@ Done when: python scripts/test_m1.py prints ≥20 articles in ≥3 clusters.
 | 2026-04-08 | **Reddit PRAW dropped for MVP** | ADR-010 | Weights → rep 70%, gtrends 30% |
 | 2026-04-08 | **SkeletonCard → ActivityIndicator for MVP** | ADR-011 | M5 simpler; polish in V1.1 |
 | 2026-04-09 | **TF-IDF fallback for embeddings (HF DNS blocked on Walmart net)** | ADR-013 | Auto-fallback; prod uses neural |
+| 2026-04-09 | **Neural model downloaded via curl workaround (XetHub CDN + proxy)** | ADR-013 addendum | scripts/download_model.py |
 
 ---
 

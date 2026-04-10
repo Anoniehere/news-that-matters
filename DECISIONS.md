@@ -387,6 +387,18 @@ No code change required to switch — fallback is detected at runtime.
   - L2-normalised output; DBSCAN with euclidean metric (= cosine on unit vectors)
   - eps=1.0 base (cosine_sim > 0.5 threshold); auto-retry up to eps*2.0
 
+**Neural model resolution order (step2_cluster.py):**
+  1. ~/.cache/signal-brief/models/all-MiniLM-L6-v2 (local, assembled by download_model.py)
+  2. HuggingFace Hub download (production / open internet)
+  3. TF-IDF fallback (if both above fail)
+
+**Download approach on Walmart network (ADR-013 addendum):**
+  The HuggingFace Python client (httpx) times out on large files through the Walmart proxy.
+  Root cause: XetHub CDN (where model weights live) closes the httpx connection before
+  the 87MB download completes. curl is unaffected.
+  Solution: scripts/download_model.py uses curl for the binary blob (--max-time 300)
+  and direct CDN for small text files. Model assembles to ~/.cache/signal-brief/models/.
+
 **Why TF-IDF works for news clustering:**
 Same-event news articles share proper nouns (names, tickers, legislation IDs).
 These exact vocabulary overlaps are strong TF-IDF signal. In short RSS snippets,
