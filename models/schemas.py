@@ -73,3 +73,32 @@ class ScoredCluster(BaseModel):
 class TrendResult(BaseModel):
     ranked_clusters: list[ScoredCluster]   # top 7, sorted desc by trend_score
     generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Step 4 output — LLM-enriched events (M3)
+# ---------------------------------------------------------------------------
+
+class SectorImpact(BaseModel):
+    name: str                              # e.g. "Technology", "Finance"
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class EnrichedEvent(BaseModel):
+    rank: int                              # inherited from ScoredCluster.rank
+    trend_score: float
+    event_heading: str                     # ≤ 15 words — the thesis sentence
+    summary: str                           # 4–8 lines, facts only, source-grounded
+    why_it_matters: str                    # 4–8 lines, Silicon Valley persona
+    sectors_impacted: list[SectorImpact]   # 1–5 items, sorted desc by confidence
+    timeline_context: str                  # 1–2 sentences — when + what's next
+    source_articles: list[Article]         # raw cluster articles, newest first (UI caps at 3)
+    signal_source: str                     # inherited from ScoredCluster.signal_source
+    enriched_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Brief(BaseModel):
+    events: list[EnrichedEvent]            # 1–5 events, rank-sorted
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    pipeline_version: str = "1.0"
+    is_stale: bool = False                 # M4 sets True if pipeline is overdue

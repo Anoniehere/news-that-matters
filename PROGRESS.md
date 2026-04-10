@@ -19,17 +19,23 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M3 — LLM Enrichment (Groq / Walmart LLM Gateway)
-  Start date:        Not started
+▶ ACTIVE MILESTONE:  M3 — LLM Enrichment  🔴 BLOCKED on GROQ_API_KEY
+  Start date:        2026-04-09
   Target complete:   Days 3-4 (2-week sprint plan)
   Blocking anything: M4, M5, M6, M7
 
-M2 completed:
-  - step3_score.py: rep 70% + social 30% (feed_diversity fallback, ADR-014)
-  - Social signal: pytrends probe → falls back to feed_diversity (Google Trends blocked on Walmart net)
-  - feed_diversity: fraction of 5 RSS feeds covering each cluster (offline, deterministic)
-  - All 10 exit criteria passed in 35.1s
-  - output/ranked_clusters.json validated against TrendResult schema
+M3 progress:
+  - pipeline/step4_enrich.py: BUILT (Groq client, retry logic, guardrails, JSON mode)
+  - models/schemas.py: EnrichedEvent + Brief + SectorImpact added
+  - scripts/test_m3.py: BUILT (dry-run ✅ all schema checks pass; live needs key)
+  - output/brief.json: not yet generated (needs API key)
+  - groq==1.1.2 installed in .venv
+
+To unblock: Add Groq API key to .env
+  1. Get free key (30 seconds): https://console.groq.com
+  2. Edit .env: replace PASTE_YOUR_KEY_HERE with gsk_...
+  3. Run: python scripts/test_m3.py --live
+  4. If all exit criteria pass → commit and start M4
 ```
 
 ---
@@ -68,7 +74,7 @@ M2 completed:
 |---|-----------|--------|------------|---------|-----------|
 | M1 | RSS Fetch + Cluster | ✅ Done | Day 1 | 2026-04-09 | 2026-04-09 |
 | M2 | Trend Scoring (rep + pytrends) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-09 |
-| M3 | LLM Enrichment | 🔲 Not started | Days 3–4 | — | — |
+| M3 | LLM Enrichment | 🔄 In progress | Days 3–4 | 2026-04-09 | — |
 | M4 | API + Cache + Scheduler | 🔲 Not started | Day 5 | — | — |
 | M5 | Mobile Home Screen | 🔲 Not started | Days 6–7 | — | — |
 | M6 | Article List Screen | 🔲 Not started | Day 8 | — | — |
