@@ -19,17 +19,17 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M2 — Trend Scoring (repetition + pytrends)
+▶ ACTIVE MILESTONE:  M3 — LLM Enrichment (Groq / Walmart LLM Gateway)
   Start date:        Not started
-  Target complete:   Day 2  (2-week sprint plan)
-  Blocking anything: M3, M4, M5, M6, M7
+  Target complete:   Days 3-4 (2-week sprint plan)
+  Blocking anything: M4, M5, M6, M7
 
-M1 completed with neural embeddings active:
-  - Model: all-MiniLM-L6-v2 (87MB)
-  - Cache: ~/.cache/signal-brief/models/all-MiniLM-L6-v2/
-  - Download script: python scripts/download_model.py
-  - Verification: 18.3× discrimination ratio (Fed↔Fed: 0.65 vs Fed↔SpaceX: 0.04)
-  - Final test: 282 articles, 7 neural clusters, 10.6s runtime
+M2 completed:
+  - step3_score.py: rep 70% + social 30% (feed_diversity fallback, ADR-014)
+  - Social signal: pytrends probe → falls back to feed_diversity (Google Trends blocked on Walmart net)
+  - feed_diversity: fraction of 5 RSS feeds covering each cluster (offline, deterministic)
+  - All 10 exit criteria passed in 35.1s
+  - output/ranked_clusters.json validated against TrendResult schema
 ```
 
 ---
@@ -67,7 +67,7 @@ M1 completed with neural embeddings active:
 | # | Milestone | Status | Sprint Day | Started | Completed |
 |---|-----------|--------|------------|---------|-----------|
 | M1 | RSS Fetch + Cluster | ✅ Done | Day 1 | 2026-04-09 | 2026-04-09 |
-| M2 | Trend Scoring (rep + pytrends) | 🔲 Not started | Day 2 | — | — |
+| M2 | Trend Scoring (rep + pytrends) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-09 |
 | M3 | LLM Enrichment | 🔲 Not started | Days 3–4 | — | — |
 | M4 | API + Cache + Scheduler | 🔲 Not started | Day 5 | — | — |
 | M5 | Mobile Home Screen | 🔲 Not started | Days 6–7 | — | — |
@@ -231,24 +231,33 @@ M1 completed with neural embeddings active:
 ## Next Session: Start Here
 
 ```
-► START M1 — Day 1 of 10.
+► START M3 — LLM Enrichment. Day 3 of 10.
 
-Setup (do this first — ~45 min):
-  1. mkdir pipeline output scripts models tests && touch .env
-  2. uv venv && source .venv/bin/activate
-  3. uv pip install fastapi uvicorn apscheduler sentence-transformers \
-       scikit-learn feedparser pytrends groq pydantic sqlmodel python-dotenv \
-       --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/\
-externa-pypi/simple --allow-insecure-host pypi.ci.artifacts.walmart.com
-  4. Add to .env:  GROQ_API_KEY=gsk_...
-  5. Get Groq key free at https://console.groq.com (no credit card)
+Context:
+  M1 + M2 complete. output/ranked_clusters.json has top-5 clusters
+  with for_llm=True. M3 reads that file and calls an LLM per cluster.
 
-Then build:
-  pipeline/step1_fetch.py   ← RSS fetch from 5 Google News feeds
-  pipeline/step2_cluster.py ← embeddings + DBSCAN
-  scripts/test_m1.py        ← smoke test; outputs output/clusters.json
+Setup needed:
+  1. Get a Groq API key (free): https://console.groq.com
+     OR use Walmart LLM Gateway: https://wmlink.wal-mart.com/genai-access
+  2. Add to .env: GROQ_API_KEY=gsk_...
+  3. pip install groq python-dotenv (if not installed)
 
-Done when: python scripts/test_m1.py prints ≥20 articles in ≥3 clusters.
+Build:
+  pipeline/step4_enrich.py
+    - Load output/ranked_clusters.json
+    - For each for_llm=True cluster, call Groq (llama-3.3-70b-versatile, temp=0.3)
+    - Pydantic schema validation; retry up to 2x
+    - Outputs: event_heading, summary (4-8 lines), why_it_matters (4-8 lines,
+      Silicon Valley persona), sectors_impacted (1-5 items), timeline_context
+    - Write output/brief.json
+
+  scripts/test_m3.py
+    - Validate all fields present and within spec
+    - Check: no financial advice, no invented facts (spot-check)
+    - Check: Pydantic validation passes without retry on ≥80% of runs
+
+Done when: python scripts/test_m3.py passes all exit criteria.
 ```
 
 ---
@@ -272,7 +281,7 @@ Done when: python scripts/test_m1.py prints ≥20 articles in ≥3 clusters.
 | 2026-04-08 | **Reddit PRAW dropped for MVP** | ADR-010 | Weights → rep 70%, gtrends 30% |
 | 2026-04-08 | **SkeletonCard → ActivityIndicator for MVP** | ADR-011 | M5 simpler; polish in V1.1 |
 | 2026-04-09 | **TF-IDF fallback for embeddings (HF DNS blocked on Walmart net)** | ADR-013 | Auto-fallback; prod uses neural |
-| 2026-04-09 | **Neural model downloaded via curl workaround (XetHub CDN + proxy)** | ADR-013 addendum | scripts/download_model.py |
+| 2026-04-09 | **pytrends 400 + external APIs blocked; feed_diversity fallback** | ADR-014 | Offline, deterministic, works on Walmart net |
 
 ---
 

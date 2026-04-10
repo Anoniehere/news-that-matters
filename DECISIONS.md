@@ -441,3 +441,38 @@ TF-IDF bigrams outperform neural models that shine on longer text.
 ---
 
 *Last updated: 2026-04-08 | 9 decisions recorded*
+
+---
+
+## ADR-014 — Social Signal Fallback: feed_diversity replaces pytrends on Walmart Network
+
+**Date:** 2026-04-09
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+M2 requires a social signal (30% weight) alongside repetition (70%).
+pytrends 4.9.x returns HTTP 400 due to Google's 2024 auth change in their
+undocumented Trends API. This failure occurs with AND without the Walmart proxy,
+confirming it is a Google API-side issue, not a network restriction.
+All other external APIs (HackerNews Firebase, Algolia) return 407 on the Walmart proxy —
+the proxy only allows Google-domain traffic.
+
+**Decision:**
+Implement a two-tier social signal:
+1. **pytrends** — probed first on every run. Used if available (e.g. production server).
+2. **feed_diversity** — fallback when pytrends fails.
+   Score = (unique feeds covering cluster - 1) / (total feeds - 1)
+   A story in US Top Stories + Economy + US Politics simultaneously IS trending.
+   Completely offline, deterministic, 100% reproducible.
+
+**Signal source is recorded in `signal_source` field on every `ScoredCluster`.**
+This lets us audit which signal was used and switch transparently in production.
+
+**Consequences:**
+- Scoring is fully functional offline on the Walmart network
+- When deployed to production (Railway/Render), pytrends may work and auto-activate
+- Reddit (V1.1) and pytrends (fix pending pytrends library update) remain future options
+- feed_diversity scores tend to be 0.0 when clusters are single-feed (common for niche stories)
+  → repetition score (70%) dominates ranking, which is the correct primary signal
+

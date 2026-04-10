@@ -61,10 +61,13 @@ class ClusterResult(BaseModel):
 
 class ScoredCluster(BaseModel):
     cluster: Cluster
-    repetition_score: float         # 0.0–1.0
-    google_trends_score: float      # 0.0–1.0
-    trend_score: float              # 0.70*rep + 0.30*gtrends
+    repetition_score: float         # 0.0–1.0  article-count signal
+    social_score: float             # 0.0–1.0  pytrends OR feed-diversity fallback
+    trend_score: float              # 0.70*rep + 0.30*social
     rank: Optional[int] = None      # assigned after sorting
+    for_llm: bool = False           # True for top-5 clusters passed to M3
+    search_term: str = ""           # keyword used for social signal query
+    signal_source: str = ""         # "pytrends" | "feed_diversity" | "none"
 
 
 class TrendResult(BaseModel):
