@@ -2,6 +2,12 @@
 > Every significant technical or product decision is logged here with context and rationale.
 > Before changing an accepted decision, add a new ADR — don't delete the old one.
 > Format: ADR-NNN | Date | Status: Proposed → Accepted | Deprecated | Superseded by ADR-NNN
+>
+> **When to update this file:**
+> Log a new ADR DURING the session the moment a significant decision is made.
+> Do not wait until the end of the session. If it is not logged here, it will be re-litigated.
+> A decision is significant if it: changes architecture, drops or adds a dependency,
+> changes a weight/threshold/limit, or makes a trade-off with future consequences.
 
 ---
 

@@ -10,9 +10,23 @@ Every session, before writing code:
 
 1. Read `CONTEXT.md` — understand current state + active milestone
 2. Read `PROGRESS.md` — know exactly what's done and what's next
-3. Check `DECISIONS.md` — don't re-litigate solved problems
+3. Read `DECISIONS.md` — don't re-litigate solved problems
 4. Read the relevant PRD section for the active milestone
 5. Explore existing files before modifying anything
+
+---
+
+## Session End Checklist
+
+Every session, before closing:
+
+1. **`DECISIONS.md`** — log any new ADR made during this session.
+   Any trade-off, dropped dependency, changed weight, or architectural choice = new ADR.
+   Do this now — not next session.
+2. **`PROGRESS.md`** — update milestone status, check off completed exit criteria,
+   and write the "Next Session: Start Here" block.
+3. **Commit** — `docs(progress): update M[N] status — [what was done]`.
+   Never end a session without committing updated docs.
 
 ---
 
