@@ -19,23 +19,28 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M3 — LLM Enrichment  🔴 BLOCKED on GROQ_API_KEY
-  Start date:        2026-04-09
-  Target complete:   Days 3-4 (2-week sprint plan)
-  Blocking anything: M4, M5, M6, M7
+▶ ACTIVE MILESTONE:  M5 — Mobile Home Screen
+  Start date:        2026-04-10
+  Target complete:   Days 6-7 (2-week sprint plan)
+  Blocking anything: M6, M7
 
-M3 progress:
-  - pipeline/step4_enrich.py: BUILT (Groq client, retry logic, guardrails, JSON mode)
-  - models/schemas.py: EnrichedEvent + Brief + SectorImpact added
-  - scripts/test_m3.py: BUILT (dry-run ✅ all schema checks pass; live needs key)
-  - output/brief.json: not yet generated (needs API key)
-  - groq==1.1.2 installed in .venv
+M4 completed:
+  - pipeline/run_pipeline.py: full M1→M2→M3 in-memory chain ✅
+  - app/db.py: SQLite WAL-mode, save_brief / load_current_brief / has_brief ✅
+  - app/scheduler.py: APScheduler 60-min background job, max_instances=1 ✅
+  - app/main.py: FastAPI GET /brief + GET /brief/status + GET /health ✅
+  - tests/test_api.py: 6/6 pytest pass in 1.34s (pre-seeded, no LLM calls) ✅
+  - Cache hit: < 500ms ✅ | is_stale logic ✅ | next_run_at ✅
+  - API port: 8001 (8000 taken by Code Puppy on dev machine)
 
-To unblock: Add Groq API key to .env
-  1. Get free key (30 seconds): https://console.groq.com
-  2. Edit .env: replace PASTE_YOUR_KEY_HERE with gsk_...
-  3. Run: python scripts/test_m3.py --live
-  4. If all exit criteria pass → commit and start M4
+M5 next steps:
+  1. mobile/ — Expo project scaffold (npx create-expo-app)
+  2. mobile/screens/HomeScreen.tsx — FlatList of EventCards
+  3. mobile/components/EventCard.tsx — heading, summary, why-it-matters, sectors, trend
+  4. mobile/components/SectorTag.tsx — colour-coded sector chips
+  5. mobile/components/TrendBar.tsx — animated trend bar
+  6. Pull-to-refresh + loading skeleton/spinner
+  7. Connect to GET /brief at localhost:8001 (replace with prod URL in M7)
 ```
 
 ---
@@ -74,9 +79,9 @@ To unblock: Add Groq API key to .env
 |---|-----------|--------|------------|---------|-----------|
 | M1 | RSS Fetch + Cluster | ✅ Done | Day 1 | 2026-04-09 | 2026-04-09 |
 | M2 | Trend Scoring (rep + pytrends) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-09 |
-| M3 | LLM Enrichment | 🔄 In progress | Days 3–4 | 2026-04-09 | — |
-| M4 | API + Cache + Scheduler | 🔲 Not started | Day 5 | — | — |
-| M5 | Mobile Home Screen | 🔲 Not started | Days 6–7 | — | — |
+| M3 | LLM Enrichment | ✅ Done | Days 3–4 | 2026-04-09 | 2026-04-08 |
+| M4 | API + Cache + Scheduler | ✅ Done | Day 5 | 2026-04-10 | 2026-04-10 |
+| M5 | Mobile Home Screen | 🔲 Not started | Days 6-7 | — | — |
 | M6 | Article List Screen | 🔲 Not started | Day 8 | — | — |
 | M7 | Deploy + QA | 🔲 Not started | Days 9–10 | — | — |
 
@@ -237,33 +242,28 @@ To unblock: Add Groq API key to .env
 ## Next Session: Start Here
 
 ```
-► START M3 — LLM Enrichment. Day 3 of 10.
+► START M5 — Mobile Home Screen. Days 6-7 of 10.
 
 Context:
-  M1 + M2 complete. output/ranked_clusters.json has top-5 clusters
-  with for_llm=True. M3 reads that file and calls an LLM per cluster.
+  M1–M4 complete. API live at http://localhost:8001/brief.
+  M5 builds the Expo React Native app that displays the brief to users.
+  Target: Silicon Valley professionals on iPhone (primary) + Android.
 
-Setup needed:
-  1. Get a Groq API key (free): https://console.groq.com
-     OR use Walmart LLM Gateway: https://wmlink.wal-mart.com/genai-access
-  2. Add to .env: GROQ_API_KEY=gsk_...
-  3. pip install groq python-dotenv (if not installed)
+Build order:
+  1. npx create-expo-app mobile --template blank-typescript (in project root)
+  2. Install: expo-font, @expo-google-fonts/plus-jakarta-sans, axios
+  3. mobile/services/api.ts  — typed fetch wrapper for GET /brief
+  4. mobile/components/EventCard.tsx  — full card (heading, summary, why, sectors, trend)
+  5. mobile/components/SectorTag.tsx  — colour-coded sector chips (PRD §8.2 colours)
+  6. mobile/components/TrendBar.tsx   — animated bar (Animated.timing, 600ms)
+  7. mobile/screens/HomeScreen.tsx    — FlatList + pull-to-refresh + spinner
+  8. App.tsx — NavigationContainer + stack navigator
 
-Build:
-  pipeline/step4_enrich.py
-    - Load output/ranked_clusters.json
-    - For each for_llm=True cluster, call Groq (llama-3.3-70b-versatile, temp=0.3)
-    - Pydantic schema validation; retry up to 2x
-    - Outputs: event_heading, summary (4-8 lines), why_it_matters (4-8 lines,
-      Silicon Valley persona), sectors_impacted (1-5 items), timeline_context
-    - Write output/brief.json
-
-  scripts/test_m3.py
-    - Validate all fields present and within spec
-    - Check: no financial advice, no invented facts (spot-check)
-    - Check: Pydantic validation passes without retry on ≥80% of runs
-
-Done when: python scripts/test_m3.py passes all exit criteria.
+Done when:
+  - 3 event cards render with real API data via Expo Go QR
+  - Pull-to-refresh works
+  - Trend bar animates on mount
+  - All tap targets ≥ 44pt
 ```
 
 ---

@@ -1,8 +1,12 @@
 """
 pipeline/step4_enrich.py — M3: LLM Enrichment
 
-For each of the top-5 trend-scored clusters, calls Groq (llama-3.3-70b-versatile)
-to produce: event_heading, summary, why_it_matters, sectors_impacted, timeline_context.
+For each of the top-5 trend-scored clusters, calls an LLM to produce:
+event_heading, summary, why_it_matters, sectors_impacted, timeline_context.
+
+Provider selection (LLM_PROVIDER env var):
+  gemini  — Google Gemini Flash (default; works on Walmart network via googleapis.com)
+  groq    — Groq llama-3.3-70b-versatile (faster; blocked on Walmart proxy)
 
 Guardrails:
   - No financial advice (system prompt + post-validation check)
@@ -12,7 +16,7 @@ Guardrails:
 
 Usage:
     python pipeline/step4_enrich.py           # reads ranked_clusters.json
-    python pipeline/step4_enrich.py --dry-run # skips LLM; uses mock data
+    python pipeline/step4_enrich.py --dry-run # skips LLM; validates schema only
 
 Output: output/brief.json  (validates against Brief schema)
 """
@@ -48,7 +52,8 @@ log = logging.getLogger(__name__)
 
 MAX_RETRIES      = 2
 LLM_TEMPERATURE  = 0.3          # AGENTS.md hard rule — never raise above 0.5
-LLM_MODEL        = "llama-3.3-70b-versatile"
+GROQ_MODEL       = "llama-3.3-70b-versatile"
+GEMINI_MODEL     = "gemini-2.5-flash"
 OUTPUT_PATH      = Path("output/brief.json")
 
 VALID_SECTORS = [
@@ -80,8 +85,8 @@ STRICT RULES you must follow:
 OUTPUT JSON SCHEMA:
 {
   "event_heading":     "<string — the thesis in 10-15 words>",
-  "summary":           "<string — 4 to 8 sentences, what happened, facts only>",
-  "why_it_matters":    "<string — 4 to 8 sentences, Silicon Valley lens>",
+  "summary":           "<string — EXACTLY 4 to 8 sentences. What happened, facts only. You MUST write at least 4 full sentences.>",
+  "why_it_matters":    "<string — EXACTLY 4 to 8 sentences, Silicon Valley lens. You MUST write at least 4 full sentences.>",
   "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
   "timeline_context":  "<string — 1-2 sentences: when this started + what happens next>"
 }
@@ -152,22 +157,68 @@ def _validate_llm_dict(raw: dict) -> None:
             )
 
 
+def _call_gemini(client, sc: ScoredCluster) -> dict:
+    """
+    Call Google Gemini Flash with retries. Returns validated raw dict.
+    Works on Walmart network — googleapis.com is proxy-whitelisted.
+    Uses google-genai SDK (v1+). Raises RuntimeError if all retries exhausted.
+    """
+    from google.genai import types as genai_types
+
+    user_msg  = _build_user_message(sc)
+    last_err: Exception | None = None
+    full_prompt = f"{SYSTEM_PROMPT}\n\nUSER REQUEST:\n{user_msg}"
+
+    for attempt in range(1, MAX_RETRIES + 2):
+        log.info(f"  LLM call attempt {attempt}/{MAX_RETRIES + 1} — "
+                 f"cluster #{sc.rank} ({sc.cluster.size} articles) [Gemini]")
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=full_prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=LLM_TEMPERATURE,
+                    response_mime_type="application/json",
+                ),
+            )
+            raw = json.loads(response.text)
+            _validate_llm_dict(raw)
+            return raw
+
+        except (json.JSONDecodeError, ValueError) as e:
+            last_err = e
+            log.warning(f"  Attempt {attempt} failed validation: {e}")
+            if attempt <= MAX_RETRIES:
+                time.sleep(1)
+        except Exception as e:
+            last_err = e
+            log.warning(f"  Attempt {attempt} API error: {e}")
+            if attempt <= MAX_RETRIES:
+                wait = 5 * attempt   # 5s, then 10s — respect 15 RPM free tier
+                log.info(f"  Waiting {wait}s before retry...")
+                time.sleep(wait)
+
+    raise RuntimeError(
+        f"All {MAX_RETRIES + 1} Gemini attempts failed for cluster #{sc.rank}. "
+        f"Last error: {last_err}"
+    )
+
+
 def _call_groq(client, sc: ScoredCluster) -> dict:
     """
     Call Groq with retries. Returns validated raw dict.
+    NOTE: blocked on Walmart network — use LLM_PROVIDER=gemini on Walmart WiFi/VPN.
     Raises RuntimeError if all retries exhausted.
     """
-    from groq import Groq  # local import so dry-run never imports groq
-
     user_msg = _build_user_message(sc)
     last_err: Exception | None = None
 
-    for attempt in range(1, MAX_RETRIES + 2):   # attempts = MAX_RETRIES + 1
+    for attempt in range(1, MAX_RETRIES + 2):
         log.info(f"  LLM call attempt {attempt}/{MAX_RETRIES + 1} — "
-                 f"cluster #{sc.rank} ({sc.cluster.size} articles)")
+                 f"cluster #{sc.rank} ({sc.cluster.size} articles) [Groq]")
         try:
             resp = client.chat.completions.create(
-                model=LLM_MODEL,
+                model=GROQ_MODEL,
                 temperature=LLM_TEMPERATURE,
                 response_format={"type": "json_object"},
                 messages=[
@@ -187,7 +238,7 @@ def _call_groq(client, sc: ScoredCluster) -> dict:
                 time.sleep(1)
 
     raise RuntimeError(
-        f"All {MAX_RETRIES + 1} LLM attempts failed for cluster #{sc.rank}. "
+        f"All {MAX_RETRIES + 1} Groq attempts failed for cluster #{sc.rank}. "
         f"Last error: {last_err}"
     )
 
@@ -222,22 +273,45 @@ def enrich_clusters(
     Returns a validated Brief ready for output/brief.json.
     """
     candidates = [sc for sc in trend_result.ranked_clusters if sc.for_llm]
-    log.info(f"Step 4: Enriching {len(candidates)} clusters via LLM "
-             f"({'DRY RUN' if dry_run else LLM_MODEL})…")
+    _provider_label = "DRY RUN" if dry_run else os.getenv("LLM_PROVIDER", "gemini").upper()
+    log.info(f"Step 4: Enriching {len(candidates)} clusters via LLM ({_provider_label})…")
 
     if not dry_run:
-        api_key = os.getenv("GROQ_API_KEY", "")
-        if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
-            raise EnvironmentError(
-                "\n\n  ❌  GROQ_API_KEY not set.\n"
-                "  1. Get a free key at https://console.groq.com (no credit card)\n"
-                "  2. Open .env and replace PASTE_YOUR_KEY_HERE with your key\n"
-                "  3. Re-run this script\n"
-                "  Or run with --dry-run to skip LLM and validate schema only.\n"
-            )
-        from groq import Groq
-        client = Groq(api_key=api_key)
+        provider = os.getenv("LLM_PROVIDER", "gemini").lower()
+
+        if provider == "gemini":
+            api_key = os.getenv("GEMINI_API_KEY", "")
+            if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
+                raise EnvironmentError(
+                    "\n\n  ❌  GEMINI_API_KEY not set.\n"
+                    "  1. Get a free key (works on Walmart network): https://aistudio.google.com/apikey\n"
+                    "  2. Open .env and set GEMINI_API_KEY=your_key\n"
+                    "  3. Re-run this script\n"
+                    "  Or run with --dry-run to validate schema only.\n"
+                )
+            from google import genai
+            proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+            client = genai.Client(api_key=api_key)
+            log.info(f"Step 4: Using provider=gemini ({GEMINI_MODEL})"
+                     + (f" via proxy {proxy}" if proxy else ""))
+
+        elif provider == "groq":
+            api_key = os.getenv("GROQ_API_KEY", "")
+            if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
+                raise EnvironmentError(
+                    "\n\n  ❌  GROQ_API_KEY not set.\n"
+                    "  1. Get a free key at https://console.groq.com\n"
+                    "  2. Open .env and set GROQ_API_KEY=your_key\n"
+                    "  3. NOTE: Groq is blocked on Walmart network — switch to LLM_PROVIDER=gemini\n"
+                )
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            log.info(f"Step 4: Using provider=groq ({GROQ_MODEL})")
+
+        else:
+            raise EnvironmentError(f"Unknown LLM_PROVIDER='{provider}'. Use 'gemini' or 'groq'.")
     else:
+        provider = "dry-run"
         client = None
 
     events: list[EnrichedEvent] = []
@@ -248,7 +322,7 @@ def enrich_clusters(
         if dry_run:
             event = _make_mock_event(sc)
         else:
-            raw = _call_groq(client, sc)
+            raw = _call_gemini(client, sc) if provider == "gemini" else _call_groq(client, sc)
             event = EnrichedEvent(
                 rank=sc.rank,
                 trend_score=sc.trend_score,

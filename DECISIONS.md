@@ -420,6 +420,52 @@ TF-IDF bigrams outperform neural models that shine on longer text.
 
 ---
 
+## ADR-015 — LLM Provider switched from Groq to Google Gemini 2.5-flash
+
+**Date:** 2026-04-08
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+Groq API (`api.groq.com`) returns 407 PROXY AUTH REQUIRED on Walmart Eagle WiFi and VPN.
+The Walmart corporate proxy only allows Google-domain traffic without authentication.
+Groq was the original M3 LLM provider (ADR-004). Running from hotspot every session
+is not sustainable for a dev machine on Walmart network.
+
+**Decision:**
+Switch primary LLM provider to Google Gemini 2.5-flash via `google-genai` SDK.
+`generativelanguage.googleapis.com` is a Google domain — proxy-whitelisted and confirmed
+reachable from Walmart network. Groq remains available via `LLM_PROVIDER=groq` for
+off-network use (home, production server).
+
+**Provider config:**
+- Env var: `LLM_PROVIDER=gemini` (default) | `groq` (off-network)
+- Gemini key: `GEMINI_API_KEY` in `.env` (from aistudio.google.com, free)
+- Proxy: `HTTPS_PROXY=http://sysproxy.wal-mart.com:8080` in `.env`
+- Model: `gemini-2.5-flash` (best free-tier model available as of 2026-04-08)
+
+**Latency impact:**
+- Groq: ~5-6s per event (200+ tok/s, off-network only)
+- Gemini 2.5-flash: ~10-11s per event (on Walmart network, proxy overhead included)
+- Total pipeline latency: 44s end-to-end — well within 5-minute NFR
+- Latency exit criterion updated from <8s to <15s per event
+
+**Rationale:**
+- Only sustainable option on Walmart network without VPN tricks or hotspot
+- Gemini 2.5-flash quality is excellent — structured output, all guardrails pass
+- Free tier is generous enough for MVP dev + demo usage
+- `LLM_PROVIDER` env var keeps the switch non-breaking for off-network environments
+
+**Consequences:**
+- `GEMINI_API_KEY` required in `.env` on Walmart machines
+- `google-genai` added to dependencies
+- Production server (Railway/Render) can use either provider — set via env var
+- ADR-004 (Groq) is superseded for on-network use; still valid for off-network
+
+**Superseded by:** — (open)
+
+---
+
 ## Template for New ADRs
 
 ```markdown

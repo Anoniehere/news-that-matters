@@ -21,7 +21,7 @@ Exit criteria (all modes):
 
 Live-only exit criteria (--live flag):
   ✅ No financial advice in any output
-  ✅ Groq latency < 8s per event (average)
+  ✅ LLM latency < 15s per event (Gemini 2.5-flash; Groq would be <8s off-network)
   ✅ Full pipeline end-to-end ≤ 5 minutes
   ✅ brief.json written to disk
 """
@@ -216,7 +216,7 @@ def main() -> None:
         print(f"\n  brief.json written → {out}")
 
         avg_latency = llm_elapsed / max(len(brief.events), 1)
-        ok = check("Avg LLM latency < 8s per event", avg_latency < 8,
+        ok = check("Avg LLM latency < 15s per event", avg_latency < 15,
                    f"{avg_latency:.1f}s avg")
         if not ok: failures.append("latency")
 
