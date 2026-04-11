@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Signal Brief",
+    "slug": "signal-brief",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.signalbrief.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#09090B"
+      },
+      "package": "com.signalbrief.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

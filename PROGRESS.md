@@ -19,28 +19,38 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M5 — Mobile Home Screen
-  Start date:        2026-04-10
-  Target complete:   Days 6-7 (2-week sprint plan)
-  Blocking anything: M6, M7
+▶ ACTIVE MILESTONE:  M6 — Article List Screen
+  Start date:        2026-04-11
+  Target complete:   Day 8 (2-week sprint plan)
+  Blocking anything: M7
 
-M4 completed:
-  - pipeline/run_pipeline.py: full M1→M2→M3 in-memory chain ✅
-  - app/db.py: SQLite WAL-mode, save_brief / load_current_brief / has_brief ✅
-  - app/scheduler.py: APScheduler 60-min background job, max_instances=1 ✅
-  - app/main.py: FastAPI GET /brief + GET /brief/status + GET /health ✅
-  - tests/test_api.py: 6/6 pytest pass in 1.34s (pre-seeded, no LLM calls) ✅
-  - Cache hit: < 500ms ✅ | is_stale logic ✅ | next_run_at ✅
-  - API port: 8001 (8000 taken by Code Puppy on dev machine)
+M5 completed:
+  - mobile/ scaffold: package.json, tsconfig, app.json, babel.config.js
+  - theme/colors.ts: full PRD §8.2 token map + sectorColors() + trendColor()
+  - theme/spacing.ts + theme/typography.ts: all design tokens
+  - types/brief.ts: TypeScript types matching FastAPI /brief response
+  - services/api.ts: fetchBrief() + formatAge() + formatRelativeDate()
+  - components/TrendBar.tsx: animated 0→score%, 600ms ease-out, color thresholds
+  - components/SectorTag.tsx: colour-coded chips, emoji per sector, PRD §8.2 colours
+  - components/EventCard.tsx: full PRD §8.6 card (accent bar, trend, heading, summary, why, tags, footer)
+  - screens/HomeScreen.tsx: FlatList + pull-to-refresh + ActivityIndicator + error state
+  - screens/ArticleListScreen.tsx: M6 placeholder (back nav works)
+  - App.tsx: NavigationContainer + font loading (PlusJakartaSans + Inter)
+  - Web bundle: 560 modules, 5.2s, zero errors ✅
+  - npm install: 603 packages, 0 vulns ✅
+  - API + web preview running together on same machine ✅
+  - Proxy issue: npm proxy configured via sysproxy.wal-mart.com:8080 ✅
+  - No Xcode/Android Studio: verified via Expo web browser preview
 
-M5 next steps:
-  1. mobile/ — Expo project scaffold (npx create-expo-app)
-  2. mobile/screens/HomeScreen.tsx — FlatList of EventCards
-  3. mobile/components/EventCard.tsx — heading, summary, why-it-matters, sectors, trend
-  4. mobile/components/SectorTag.tsx — colour-coded sector chips
-  5. mobile/components/TrendBar.tsx — animated trend bar
-  6. Pull-to-refresh + loading skeleton/spinner
-  7. Connect to GET /brief at localhost:8001 (replace with prod URL in M7)
+M6 next steps:
+  1. Replace ArticleListScreen placeholder with full implementation
+  2. ArticleItem.tsx — single article row (title, source, date, external link)
+  3. DateGroupHeader.tsx — date section headers (Today / Yesterday / Mar 15)
+  4. Articles sorted newest→oldest, grouped by calendar day
+  5. Tap article → expo-web-browser in-app sheet
+  6. Share button → native Share API
+  7. Sticky disclaimer footer
+  8. Back navigation + swipe gesture (already wired via native stack)
 ```
 
 ---
@@ -81,7 +91,7 @@ M5 next steps:
 | M2 | Trend Scoring (rep + pytrends) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-09 |
 | M3 | LLM Enrichment | ✅ Done | Days 3–4 | 2026-04-09 | 2026-04-08 |
 | M4 | API + Cache + Scheduler | ✅ Done | Day 5 | 2026-04-10 | 2026-04-10 |
-| M5 | Mobile Home Screen | 🔲 Not started | Days 6-7 | — | — |
+| M5 | Mobile Home Screen | ✅ Done | Days 6-7 | 2026-04-11 | 2026-04-11 |
 | M6 | Article List Screen | 🔲 Not started | Day 8 | — | — |
 | M7 | Deploy + QA | 🔲 Not started | Days 9–10 | — | — |
 
@@ -242,28 +252,26 @@ M5 next steps:
 ## Next Session: Start Here
 
 ```
-► START M5 — Mobile Home Screen. Days 6-7 of 10.
+► START M6 — Article List Screen. Day 8 of 10.
 
 Context:
-  M1–M4 complete. API live at http://localhost:8001/brief.
-  M5 builds the Expo React Native app that displays the brief to users.
-  Target: Silicon Valley professionals on iPhone (primary) + Android.
+  M5 done. HomeScreen renders EventCards from real API data.
+  Tapping a card navigates to ArticleListScreen (currently a placeholder).
+  M6 fills in the real ArticleListScreen per PRD §8.8.
 
-Build order:
-  1. npx create-expo-app mobile --template blank-typescript (in project root)
-  2. Install: expo-font, @expo-google-fonts/plus-jakarta-sans, axios
-  3. mobile/services/api.ts  — typed fetch wrapper for GET /brief
-  4. mobile/components/EventCard.tsx  — full card (heading, summary, why, sectors, trend)
-  5. mobile/components/SectorTag.tsx  — colour-coded sector chips (PRD §8.2 colours)
-  6. mobile/components/TrendBar.tsx   — animated bar (Animated.timing, 600ms)
-  7. mobile/screens/HomeScreen.tsx    — FlatList + pull-to-refresh + spinner
-  8. App.tsx — NavigationContainer + stack navigator
+Files to build:
+  1. mobile/components/ArticleItem.tsx      — row: title, source, relative timestamp, external link icon
+  2. mobile/components/DateGroupHeader.tsx  — section header: "Today" / "Yesterday" / "Apr 8"
+  3. mobile/screens/ArticleListScreen.tsx   — SectionList + back nav + share + disclaimer footer
 
 Done when:
-  - 3 event cards render with real API data via Expo Go QR
-  - Pull-to-refresh works
-  - Trend bar animates on mount
-  - All tap targets ≥ 44pt
+  - Tap EventCard on HomeScreen → ArticleListScreen with that event's articles
+  - Articles grouped by day (Today / Yesterday / date), sorted newest→oldest
+  - Tap article row → opens URL in expo-web-browser in-app sheet
+  - Share button → native Share sheet (event heading + source count)
+  - Sticky disclaimer footer always visible
+  - Back (button + swipe) returns to HomeScreen
+  - Expo web preview renders correctly
 ```
 
 ---
