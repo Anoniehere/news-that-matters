@@ -1,476 +1,526 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⚡ Signal Brief</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Signal Brief</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
-    .font-display { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
-    .trend-bar-fill { transition: width 0.9s cubic-bezier(0.4,0,0.2,1); }
-    .card-enter { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-    .card-enter:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.15); }
-    .dashed { border-top: 1.5px dashed #3F3F46; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #09090B; }
-    ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 3px; }
+    *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    :root{
+      --bg:#000;--surface:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);
+      --text:#fafafa;--muted:rgba(255,255,255,.45);--dim:rgba(255,255,255,.2);
+      --accent:#7c3aed;--accent2:#06b6d4;--nav-h:80px;
+    }
+    html,body{height:100%;margin:0;background:#0a0010;overflow:hidden}
+    body{font-family:'Inter',sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center}
+    .font-display{font-family:'Plus Jakarta Sans',sans-serif}
 
-    /* Article list panel */
-    #article-panel {
-      position: fixed; inset: 0; z-index: 100;
-      background: #09090B;
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-      display: flex; flex-direction: column;
-      overflow: hidden;
+    /* Desktop: aurora bg + centered phone shell */
+    .aurora{
+      position:fixed;inset:0;z-index:0;
+      background:radial-gradient(ellipse 80% 60% at 20% -10%,#3b0764 0%,transparent 60%),
+                 radial-gradient(ellipse 60% 50% at 80% 110%,#0c4a6e 0%,transparent 55%),
+                 radial-gradient(ellipse 50% 40% at 50% 50%,#1e0533 0%,transparent 70%),
+                 #000;
     }
-    #article-panel.open { transform: translateX(0); }
-    #panel-body { overflow-y: auto; flex: 1; }
-    .date-header {
-      position: sticky; top: 0; z-index: 10;
-      background: #09090B;
-      display: flex; align-items: center; gap: 12px;
-      padding: 8px 16px;
+    .phone{
+      position:relative;z-index:1;
+      width:100%;max-width:430px;height:100dvh;
+      background:#000;overflow:hidden;
+      display:flex;flex-direction:column;
     }
-    .date-hr { flex: 1; height: 1px; background: #3F3F46; }
-    .article-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px; min-height: 44px;
-      border-bottom: 1px solid #27272a;
-      background: #18181b; cursor: pointer;
-      text-decoration: none; color: inherit;
-      transition: background 0.12s;
+    @media(min-width:500px){
+      .phone{height:min(900px,96dvh);border-radius:44px;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 40px 80px rgba(0,0,0,.8)}
+      body{overflow:hidden}
     }
-    .article-row:hover, .article-row:active { background: #27272a; }
-    .article-row .art-title {
-      flex: 1; font-size: 14px; font-weight: 500;
-      color: #fafafa; line-height: 1.4;
-      display: -webkit-box; -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical; overflow: hidden;
+
+    /* Status bar */
+    .status-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px 0;flex-shrink:0;font-size:12px;font-weight:600;letter-spacing:.01em}
+
+    /* Scrollable main */
+    .scroll-main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav-h) + 16px)}
+    .scroll-main::-webkit-scrollbar{display:none}
+
+    /* Glass card */
+    .glass-card{
+      background:linear-gradient(135deg,rgba(255,255,255,.06) 0%,rgba(255,255,255,.02) 100%);
+      border:1px solid var(--border);border-radius:24px;overflow:hidden;
+      position:relative;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease;
     }
-    .article-row .art-meta {
-      font-size: 11px; color: #71717a; margin-top: 3px;
+    .glass-card::before{
+      content:'';position:absolute;inset:0;border-radius:inherit;
+      background:radial-gradient(ellipse at top,rgba(124,58,237,.12) 0%,transparent 60%);
+      pointer-events:none;
     }
-    .article-row .art-meta span { color: #818cf8; }
-    .article-arrow { color: #818cf8; font-size: 14px; flex-shrink: 0; }
+    .glass-card:active{transform:scale(.98)}
+
+    /* Card accent strip */
+    .card-strip{height:3px;width:100%;border-radius:0}
+
+    /* Rank watermark */
+    .rank-wm{
+      position:absolute;top:-8px;right:16px;
+      font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
+      font-size:80px;line-height:1;
+      color:rgba(255,255,255,.04);user-select:none;pointer-events:none;letter-spacing:-.04em;
+    }
+
+    /* Trend ring (SVG circles animated via JS) */
+    .ring-track{fill:none;stroke:rgba(255,255,255,.08);stroke-width:3}
+    .ring-fill{fill:none;stroke-width:3;stroke-linecap:round;transform-origin:center;transform:rotate(-90deg);transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)}
+
+    /* Trend badge */
+    .trend-badge{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.04em;
+    }
+
+    /* Why it matters block */
+    .matters-block{
+      background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);
+      border-radius:16px;padding:14px;
+    }
+
+    /* Sector chip */
+    .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+
+    /* Bottom nav */
+    .bottom-nav{
+      position:absolute;bottom:0;left:0;right:0;height:var(--nav-h);
+      background:rgba(0,0,0,.7);backdrop-filter:blur(24px) saturate(180%);
+      -webkit-backdrop-filter:blur(24px) saturate(180%);
+      border-top:1px solid rgba(255,255,255,.07);
+      display:flex;align-items:center;justify-content:space-around;
+      padding-bottom:env(safe-area-inset-bottom,0px);flex-shrink:0;
+    }
+    .nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:500;color:var(--dim);min-width:44px;min-height:44px;justify-content:center;cursor:default}
+    .nav-item.active{color:var(--text)}
+    .nav-dot{width:4px;height:4px;border-radius:99px;background:var(--accent);margin-top:2px}
+
+    /* Article bottom sheet */
+    #sheet{
+      position:absolute;inset:0;z-index:200;
+      display:flex;flex-direction:column;
+      transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);
+      background:transparent;
+    }
+    #sheet.open{transform:translateY(0)}
+    #sheet-backdrop{
+      position:absolute;inset:0;background:rgba(0,0,0,.6);
+      backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+      opacity:0;transition:opacity .35s ease;cursor:pointer;
+    }
+    #sheet.open #sheet-backdrop{opacity:1}
+    #sheet-inner{
+      position:absolute;bottom:0;left:0;right:0;
+      max-height:92%;display:flex;flex-direction:column;
+      background:#0f0f0f;border-radius:28px 28px 0 0;
+      border:1px solid rgba(255,255,255,.1);border-bottom:none;
+      overflow:hidden;
+    }
+    .drag-handle{width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);margin:12px auto 0;flex-shrink:0}
+    #sheet-scroll{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,24px)}
+    #sheet-scroll::-webkit-scrollbar{display:none}
+
+    /* Article row */
+    .art-row{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);align-items:flex-start;text-decoration:none;color:inherit;transition:background .12s}
+    .art-row:active{background:rgba(255,255,255,.04)}
+    .art-num{width:24px;height:24px;border-radius:8px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;margin-top:1px}
+
+    /* Card entrance animation */
+    @keyframes slideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
+    .card-anim{animation:slideUp .5s cubic-bezier(.4,0,.2,1) both}
+
+    /* Skeleton */
+    @keyframes shimmer{to{background-position:200% center}}
+    .skel{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.04) 75%);background-size:200%;animation:shimmer 1.4s infinite}
+
+    /* Glow pulse on live badge */
+    @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.5)}50%{box-shadow:0 0 0 5px rgba(124,58,237,0)}}
+    .live-dot{width:6px;height:6px;border-radius:99px;background:#7c3aed;animation:glowPulse 2s infinite}
   </style>
 </head>
+<body>
 
-<body class="min-h-full bg-zinc-950 text-zinc-100">
+<div class="aurora" aria-hidden="true"></div>
 
-  <!-- Header -->
-  <header class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3">
-    <div class="max-w-2xl mx-auto flex items-center justify-between">
-      <div>
-        <h1 class="font-display font-extrabold text-xl text-white tracking-tight">⚡ Signal Brief</h1>
-        <p id="subtitle" class="text-xs text-zinc-500 mt-0.5">Loading…</p>
-      </div>
-      <button onclick="loadBrief()"
-        class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5
-               rounded-full border border-zinc-700 transition-colors">
-        ↻ Refresh
-      </button>
-    </div>
-  </header>
+<div class="phone" id="phone">
 
-  <!-- Main -->
-  <main class="max-w-2xl mx-auto px-4 py-6 space-y-5" id="main">
-
-    <!-- Loading -->
-    <div id="loading" class="flex flex-col items-center justify-center py-24 gap-4">
-      <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-zinc-400 text-sm">Fetching Signal Brief…</p>
-    </div>
-
-    <!-- Error -->
-    <div id="error-state" class="hidden bg-zinc-900 border border-rose-800/60 rounded-2xl p-6 text-center">
-      <p class="text-rose-400 font-semibold mb-1">⚠ Could not load brief</p>
-      <p id="error-msg" class="text-zinc-400 text-sm mb-4 font-mono"></p>
-      <button onclick="loadBrief()"
-        class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors">
-        Try again
-      </button>
-    </div>
-
-    <!-- Events -->
-    <div id="events" class="space-y-5 hidden"></div>
-  </main>
-
-  <!-- Disclaimer -->
-  <footer class="max-w-2xl mx-auto px-4 pb-10 pt-2">
-    <p class="text-center text-zinc-600 text-xs leading-relaxed">
-      Signal Brief is for informational purposes only.<br>
-      Not financial, legal, or investment advice. Always verify with primary sources.
-    </p>
-  </footer>
-
-<!-- Article list panel (slides in from right) -->
-<div id="article-panel" role="dialog" aria-modal="true" aria-label="Article list">
-
-  <!-- Panel header -->
-  <div style="border-bottom:1px solid #27272a;flex-shrink:0" class="px-4 py-3">
-    <div class="max-w-2xl mx-auto">
-      <div class="flex items-center justify-between mb-3">
-        <button onclick="closeArticleList()"
-          style="min-height:44px"
-          class="text-sm font-medium text-indigo-400 hover:text-indigo-300 px-2 py-1.5 -ml-2 rounded-lg transition-colors"
-          aria-label="Go back">
-          ← Back
-        </button>
-        <button onclick="shareEvent()"
-          style="min-height:44px"
-          class="text-sm font-medium text-indigo-400 hover:text-indigo-300 px-2 py-1.5 rounded-lg transition-colors">
-          Share ⬆
-        </button>
-      </div>
-      <h2 id="panel-heading" class="font-display font-bold text-lg text-white leading-snug mb-2"></h2>
-      <div id="panel-meta" class="flex items-center gap-2 flex-wrap mb-2"></div>
-      <div id="panel-insight"
-           class="hidden text-xs text-zinc-600 italic bg-zinc-900 rounded-lg px-3 py-2">
-      </div>
+  <!-- Status bar -->
+  <div class="status-bar" aria-hidden="true">
+    <span id="sb-time" style="font-variant-numeric:tabular-nums">9:41</span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(255,255,255,.7)"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" fill="rgba(255,255,255,.25)"/></svg>
+      <svg width="16" height="12" viewBox="0 0 24 12" fill="rgba(255,255,255,.7)"><rect x="0" y="2" width="20" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="4" width="13" height="4" rx="1" fill="currentColor"/><rect x="21" y="4" width="3" height="4" rx="1" fill="currentColor" opacity=".4"/></svg>
     </div>
   </div>
 
-  <!-- Scrollable body -->
-  <div id="panel-body" style="overflow-y:auto;flex:1" class="max-w-2xl mx-auto w-full">
-    <div id="panel-articles"></div>
-    <p class="text-center text-zinc-700 text-xs leading-relaxed px-4 py-6 border-t border-zinc-800 mt-2">
-      Signal Brief is for informational purposes only.<br>
-      Not financial, legal, or investment advice.
-    </p>
+  <!-- Header -->
+  <header style="padding:12px 20px 10px;flex-shrink:0">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+          <div class="live-dot"></div>
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase">Live</span>
+        </div>
+        <h1 class="font-display" style="font-size:26px;font-weight:900;letter-spacing:-.03em;line-height:1;background:linear-gradient(135deg,#fff 40%,rgba(255,255,255,.5));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Signal Brief</h1>
+      </div>
+      <button onclick="loadBrief()" aria-label="Refresh"
+        style="width:40px;height:40px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
+        onmouseenter="this.style.background='rgba(255,255,255,.12)'" onmouseleave="this.style.background='rgba(255,255,255,.06)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+    </div>
+    <p id="subtitle" style="font-size:12px;color:rgba(255,255,255,.3);margin-top:6px;min-height:16px"></p>
+  </header>
+
+  <!-- Scroll area -->
+  <div class="scroll-main" id="scroll-main">
+
+    <!-- Skeleton loaders -->
+    <div id="loading" style="padding:0 16px;display:flex;flex-direction:column;gap:16px">
+      <div class="glass-card" style="padding:20px;animation-delay:0s">
+        <div class="skel" style="height:12px;width:40%;border-radius:6px;margin-bottom:14px"></div>
+        <div class="skel" style="height:22px;width:90%;border-radius:6px;margin-bottom:8px"></div>
+        <div class="skel" style="height:22px;width:70%;border-radius:6px;margin-bottom:20px"></div>
+        <div class="skel" style="height:56px;border-radius:12px;margin-bottom:14px"></div>
+        <div style="display:flex;gap:8px"><div class="skel" style="height:26px;width:80px;border-radius:99px"></div><div class="skel" style="height:26px;width:70px;border-radius:99px"></div></div>
+      </div>
+      <div class="glass-card" style="padding:20px;opacity:.6">
+        <div class="skel" style="height:12px;width:35%;border-radius:6px;margin-bottom:14px"></div>
+        <div class="skel" style="height:22px;width:85%;border-radius:6px;margin-bottom:8px"></div>
+        <div class="skel" style="height:22px;width:60%;border-radius:6px;margin-bottom:20px"></div>
+        <div class="skel" style="height:56px;border-radius:12px"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-state" style="display:none;padding:24px 20px">
+      <div class="glass-card" style="padding:28px 20px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+        <p style="font-weight:700;font-size:16px;margin-bottom:6px">Couldn't load brief</p>
+        <p id="error-msg" style="font-size:12px;color:var(--muted);font-family:monospace;margin-bottom:20px;word-break:break-all"></p>
+        <button onclick="loadBrief()"
+          style="padding:12px 24px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:600;font-size:14px;border:none;cursor:pointer;width:100%">
+          Try Again
+        </button>
+      </div>
+    </div>
+
+    <!-- Events feed -->
+    <div id="events" style="display:none;padding:0 16px;display:none;flex-direction:column;gap:16px"></div>
+
+  </div><!-- /scroll-main -->
+
+  <!-- Bottom nav (decorative — single screen app) -->
+  <nav class="bottom-nav" aria-label="Navigation">
+    <div class="nav-item active">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <div class="nav-dot"></div>
+    </div>
+    <div class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Explore</span>
+    </div>
+    <div class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alerts</span>
+    </div>
+    <div class="nav-item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span>Profile</span>
+    </div>
+  </nav>
+
+</div><!-- /phone -->
+
+<!-- Article bottom sheet -->
+<div id="sheet" role="dialog" aria-modal="true" aria-label="Sources">
+  <div id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div id="sheet-inner">
+    <div class="drag-handle"></div>
+    <!-- Sheet header -->
+    <div style="padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <p id="sh-label" style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px"></p>
+          <h2 id="sh-heading" class="font-display" style="font-size:17px;font-weight:800;line-height:1.25;letter-spacing:-.02em"></h2>
+        </div>
+        <button onclick="shareEvent()" aria-label="Share"
+          style="width:36px;height:36px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49"/></svg>
+        </button>
+      </div>
+      <div id="sh-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+    </div>
+    <!-- Articles list -->
+    <div id="sheet-scroll">
+      <div id="sh-articles"></div>
+      <p style="text-align:center;font-size:11px;color:rgba(255,255,255,.18);padding:20px 16px;line-height:1.6">
+        Signal Brief is for informational purposes only.<br>Not financial or investment advice.
+      </p>
+    </div>
   </div>
 </div>
 
 <script>
-// ── API endpoint ─────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 const API = 'http://127.0.0.1:8001';
 
-// ── Sector colours ───────────────────────────────────────────────────────────
-const SECTORS = {
-  'Technology':     { bg:'#1e1b4b', border:'#4338ca', text:'#a5b4fc', emoji:'💻' },
-  'Finance':        { bg:'#064e3b', border:'#059669', text:'#6ee7b7', emoji:'💰' },
-  'Healthcare':     { bg:'#4c0519', border:'#be123c', text:'#fda4af', emoji:'🏥' },
-  'Energy':         { bg:'#451a03', border:'#b45309', text:'#fcd34d', emoji:'⚡' },
-  'Policy & Regulation':         { bg:'#2e1065', border:'#7c3aed', text:'#c4b5fd', emoji:'⚖️' },
-  'Defence':        { bg:'#450a0a', border:'#dc2626', text:'#fca5a5', emoji:'🛡' },
-  'Trade':          { bg:'#082f49', border:'#0369a1', text:'#7dd3fc', emoji:'🌐' },
-  'Labour & Employment':         { bg:'#042f2e', border:'#0f766e', text:'#5eead4', emoji:'👷' },
-  'Real Estate':    { bg:'#431407', border:'#c2410c', text:'#fdba74', emoji:'🏠' },
-  'Consumer Goods': { bg:'#500724', border:'#be185d', text:'#f9a8d4', emoji:'🛒' },
-  'Retail & E-commerce': { bg:'#500724', border:'#be185d', text:'#f9a8d4', emoji:'🛒' },
-  'Media':          { bg:'#4a044e', border:'#a21caf', text:'#e879f9', emoji:'📺' },
-  'Education':      { bg:'#083344', border:'#0891b2', text:'#67e8f9', emoji:'📚' },
+const CARD_GRADIENTS = [
+  ['#7c3aed','#a855f7','#c026d3'],
+  ['#0ea5e9','#06b6d4','#0d9488'],
+  ['#f43f5e','#ec4899','#a855f7'],
+];
+
+const SECTOR_MAP = {
+  'Technology':            {bg:'rgba(99,102,241,.15)',b:'rgba(99,102,241,.4)',t:'#a5b4fc',e:'💻'},
+  'Finance':               {bg:'rgba(5,150,105,.15)',b:'rgba(5,150,105,.4)',t:'#6ee7b7',e:'💰'},
+  'Healthcare':            {bg:'rgba(244,63,94,.12)',b:'rgba(244,63,94,.35)',t:'#fda4af',e:'🏥'},
+  'Energy':                {bg:'rgba(245,158,11,.12)',b:'rgba(245,158,11,.35)',t:'#fcd34d',e:'⚡'},
+  'Policy & Regulation':  {bg:'rgba(139,92,246,.15)',b:'rgba(139,92,246,.4)',t:'#c4b5fd',e:'⚖️'},
+  'Defence':               {bg:'rgba(239,68,68,.12)',b:'rgba(239,68,68,.35)',t:'#fca5a5',e:'🛡️'},
+  'Trade':                 {bg:'rgba(14,165,233,.15)',b:'rgba(14,165,233,.4)',t:'#7dd3fc',e:'🌐'},
+  'Labour & Employment':  {bg:'rgba(20,184,166,.12)',b:'rgba(20,184,166,.35)',t:'#5eead4',e:'👷'},
+  'Real Estate':           {bg:'rgba(249,115,22,.12)',b:'rgba(249,115,22,.35)',t:'#fdba74',e:'🏠'},
+  'Media':                 {bg:'rgba(192,38,211,.12)',b:'rgba(192,38,211,.35)',t:'#e879f9',e:'📺'},
+  'Education':             {bg:'rgba(8,145,178,.12)',b:'rgba(8,145,178,.35)',t:'#67e8f9',e:'📚'},
+  'Consumer Goods':        {bg:'rgba(236,72,153,.12)',b:'rgba(236,72,153,.35)',t:'#f9a8d4',e:'🛒'},
+  'Retail & E-commerce':  {bg:'rgba(236,72,153,.12)',b:'rgba(236,72,153,.35)',t:'#f9a8d4',e:'🛒'},
 };
 
-function sectorStyle(name) {
-  return SECTORS[name] || { bg:'#1c1c1e', border:'#52525b', text:'#d4d4d8', emoji:'📌' };
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const esc = s => !s ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function relTime(iso){
+  if(!iso) return '';
+  const s=(Date.now()-new Date(iso).getTime())/1000;
+  if(s<3600)  return Math.round(s/60)+'m ago';
+  if(s<86400) return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago';
 }
 
-// ── Trend colour ─────────────────────────────────────────────────────────────
-function trendColor(s) {
-  if (s >= 0.7) return { bar:'#34d399', text:'#34d399' };
-  if (s >= 0.4) return { bar:'#fbbf24', text:'#fbbf24' };
-  return               { bar:'#f87171', text:'#f87171' };
+function sectorStyle(n){ return SECTOR_MAP[n]||{bg:'rgba(255,255,255,.06)',b:'rgba(255,255,255,.15)',t:'rgba(255,255,255,.6)',e:'📌'}; }
+
+function trendColor(s){
+  if(s>=.7) return {stroke:'#34d399',badge:'rgba(52,211,153,.15)',text:'#34d399',label:'HIGH'};
+  if(s>=.4) return {stroke:'#fbbf24',badge:'rgba(251,191,36,.15)',text:'#fbbf24',label:'MID'};
+  return          {stroke:'#f87171',badge:'rgba(248,113,113,.15)',text:'#f87171',label:'LOW'};
 }
 
-// ── Accent gradient per rank ─────────────────────────────────────────────────
-const ACCENTS = [
-  'linear-gradient(90deg,#6366f1,#8b5cf6,#a855f7)',
-  'linear-gradient(90deg,#0ea5e9,#06b6d4,#14b8a6)',
-  'linear-gradient(90deg,#f43f5e,#ec4899,#d946ef)',
-];
-function accent(rank) { return ACCENTS[(rank-1) % ACCENTS.length]; }
+const CIRCUM = 2*Math.PI*18; // ring circumference for r=18
 
-// ── Relative time ────────────────────────────────────────────────────────────
-function relTime(iso) {
-  if (!iso) return '';
-  try {
-    const s = (Date.now() - new Date(iso).getTime()) / 1000;
-    if (s < 3600)  return Math.round(s/60)  + 'm ago';
-    if (s < 86400) return Math.round(s/3600) + 'h ago';
-    return Math.round(s/86400) + 'd ago';
-  } catch { return ''; }
+function ringHTML(score, color){
+  const offset = CIRCUM*(1-score);
+  return `<svg width="44" height="44" viewBox="0 0 44 44" style="flex-shrink:0">
+    <circle class="ring-track" cx="22" cy="22" r="18"/>
+    <circle class="ring-fill" cx="22" cy="22" r="18"
+      stroke="${color}" stroke-dasharray="${CIRCUM}" stroke-dashoffset="${CIRCUM}"
+      data-offset="${offset}"/>
+  </svg>`;
 }
 
-// ── Render event card ────────────────────────────────────────────────────────
-function renderCard(ev) {
-  const pct  = Math.round(ev.trend_score * 100);
-  const tc   = trendColor(ev.trend_score);
-  const ac   = accent(ev.rank);
+// ── Render card ───────────────────────────────────────────────────────────────
+function renderCard(ev, idx){
+  const g   = CARD_GRADIENTS[idx % CARD_GRADIENTS.length];
+  const tc  = trendColor(ev.trend_score);
+  const pct = Math.round(ev.trend_score*100);
+  const arts= (ev.source_articles||[]).slice(0,3);
 
-  const sectorChips = (ev.sectors_impacted || []).slice(0,5).map(s => {
-    const st = sectorStyle(s.name);
-    return `<span style="background:${st.bg};border:1px solid ${st.border};color:${st.text}"
-                  class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium">
-              ${st.emoji} ${s.name}
-            </span>`;
+  const sectors = (ev.sectors_impacted||[]).slice(0,4).map(s=>{
+    const st=sectorStyle(s.name);
+    return `<span class="chip" style="background:${st.bg};border:1px solid ${st.b};color:${st.t}">${st.e} ${esc(s.name)}</span>`;
   }).join('');
 
-  const articleRows = (ev.source_articles || []).slice(0,3).map(a => `
-    <a href="${escHtml(a.url)}" target="_blank" rel="noopener noreferrer"
-       style="background:#27272a;border:1px solid #3f3f46"
-       class="flex items-start gap-3 p-3 rounded-xl hover:border-indigo-600 transition-all group block">
-      <div class="flex-1 min-w-0">
-        <p class="text-sm text-zinc-200 font-medium leading-snug line-clamp-2 group-hover:text-white">
-          ${escHtml(a.title)}
-        </p>
-        <p class="text-xs text-zinc-500 mt-1">
-          ${escHtml(a.source_name || a.feed_name || 'Source')} · ${relTime(a.published_at)}
-        </p>
+  const artPreview = arts.map(a=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="width:3px;height:28px;border-radius:99px;background:${g[0]};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:12px;color:rgba(255,255,255,.75);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical">${esc(a.title)}</p>
+        <p style="font-size:10px;color:rgba(255,255,255,.3);margin-top:2px">${esc(a.source_name||a.feed_name)} · ${relTime(a.published_at)}</p>
       </div>
-      <span class="text-zinc-500 group-hover:text-indigo-400 transition-colors text-sm flex-shrink-0 mt-0.5">↗</span>
-    </a>`).join('');
+    </div>`).join('');
 
   return `
-  <article style="background:#18181b;border:1px solid #27272a"
-           class="rounded-2xl overflow-hidden card-enter">
+  <article class="glass-card card-anim" style="animation-delay:${idx*.12}s" onclick="openSheet(window.__evs[${idx}])">
+    <div class="card-strip" style="background:linear-gradient(90deg,${g.join(',')})"></div>
+    <div class="rank-wm">${String(ev.rank).padStart(2,'0')}</div>
+    <div style="padding:18px 18px 16px">
 
-    <!-- Accent bar -->
-    <div style="height:4px;background:${ac}"></div>
-
-    <div class="p-5">
-
-      <!-- Rank + trend bar -->
-      <div class="flex items-center gap-3 mb-1">
-        <span class="text-xs font-bold text-zinc-500 tracking-widest">#${ev.rank}</span>
-        <div style="background:#27272a" class="flex-1 h-1.5 rounded-full overflow-hidden">
-          <div style="width:0%;background:${tc.bar};transition:width 0.9s cubic-bezier(0.4,0,0.2,1)"
-               class="h-full rounded-full" data-width="${pct}%"></div>
+      <!-- Top row: ring + trend badge -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        ${ringHTML(ev.trend_score, tc.stroke)}
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="trend-badge" style="background:${tc.badge};color:${tc.text}">
+              ▲ ${pct}% TREND
+            </span>
+          </div>
+          ${ev.trend_insight
+            ? `<p style="font-size:11px;color:rgba(255,255,255,.28);line-height:1.4;max-width:220px">${esc(ev.trend_insight.split('—')[0].trim())}</p>`
+            : ''}
         </div>
-        <span style="color:${tc.text}" class="text-xs font-semibold whitespace-nowrap">
-          TRENDING ${pct}%
-        </span>
       </div>
 
-      <!-- Trend insight -->
-      ${ev.trend_insight ? `
-      <p class="text-xs text-zinc-600 italic mb-3 pl-7 leading-relaxed">
-        ${escHtml(ev.trend_insight)}
-      </p>` : '<div class="mb-3"></div>'}
-
       <!-- Heading -->
-      <h2 class="font-display font-bold text-lg text-white leading-snug mb-4">
-        ${escHtml(ev.event_heading)}
+      <h2 class="font-display" style="font-size:18px;font-weight:800;line-height:1.25;letter-spacing:-.025em;margin-bottom:10px;color:#fff">
+        ${esc(ev.event_heading)}
       </h2>
 
-      <!-- Dashed divider -->
-      <div class="dashed mb-4"></div>
-
       <!-- Summary -->
-      <p class="text-sm text-zinc-400 leading-relaxed mb-4">${escHtml(ev.summary)}</p>
+      <p style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.55;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">
+        ${esc(ev.summary)}
+      </p>
 
       <!-- Why it matters -->
-      <div style="background:#27272a;border:1px solid #3f3f46" class="rounded-xl p-4 mb-4">
-        <p class="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-2">
-          Why it matters
-        </p>
-        <p class="text-sm text-zinc-300 leading-relaxed">${escHtml(ev.why_it_matters)}</p>
+      <div class="matters-block" style="margin-bottom:14px">
+        <p style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(124,58,237,.8);margin-bottom:6px">Why it matters</p>
+        <p style="font-size:12.5px;color:rgba(255,255,255,.7);line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(ev.why_it_matters)}</p>
       </div>
 
       <!-- Sector chips -->
-      ${sectorChips ? `<div class="flex flex-wrap gap-2 mb-4">${sectorChips}</div>` : ''}
+      ${sectors ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${sectors}</div>` : ''}
 
-      <!-- Source articles -->
-      ${articleRows ? `
-        <div class="space-y-2">
-          <p class="text-xs font-semibold text-zinc-500 tracking-wider uppercase mb-2">Sources</p>
-          ${articleRows}
-        </div>` : ''}
+      <!-- Article previews -->
+      ${artPreview ? `<div style="margin-bottom:12px">${artPreview}</div>` : ''}
 
-      <!-- Footer -->
-      <div class="flex items-center justify-between mt-4 pt-3" style="border-top:1px solid #27272a">
-        <span class="text-xs text-zinc-600">
-          ${(ev.source_articles||[]).length} source${ev.source_articles?.length!==1?'s':''}
+      <!-- Footer CTA -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
+        <span style="font-size:11px;color:rgba(255,255,255,.25)">${arts.length} source${arts.length!==1?'s':''} · ${relTime(ev.enriched_at)}</span>
+        <span style="font-size:12px;font-weight:600;color:${g[0]};display:flex;align-items:center;gap:4px">
+          All sources
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
         </span>
-        <button
-          onclick="openArticleList(window.__brief_events[${ev.rank-1}])"
-          class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
-          style="min-height:44px;padding:0 4px"
-          aria-label="View all articles for this event">
-          View all sources →
-        </button>
       </div>
-
     </div>
   </article>`;
 }
 
-// ── XSS guard ────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  if (!s) return '';
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+// ── Sheet management ─────────────────────────────────────────────────────────
+let _activeEv = null;
+
+function sameDay(a,b){ return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
+
+function dayLabel(iso){
+  const d=new Date(iso), now=new Date(), yes=new Date(now);
+  yes.setDate(now.getDate()-1);
+  if(sameDay(d,now)) return 'Today';
+  if(sameDay(d,yes)) return 'Yesterday';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 
-// ── Animate bars ─────────────────────────────────────────────────────────────
-function animateBars() {
-  requestAnimationFrame(() => {
-    document.querySelectorAll('[data-width]').forEach(el => {
-      const w = el.getAttribute('data-width');
-      setTimeout(() => { el.style.width = w; }, 120);
+function openSheet(ev){
+  if(!ev) return;
+  _activeEv = ev;
+  const g = CARD_GRADIENTS[(ev.rank-1) % CARD_GRADIENTS.length];
+
+  document.getElementById('sh-label').textContent = `#${ev.rank} trending`;
+  document.getElementById('sh-heading').textContent = ev.event_heading||'';
+
+  const chips = (ev.sectors_impacted||[]).slice(0,4).map(s=>{
+    const st=sectorStyle(s.name);
+    return `<span class="chip" style="background:${st.bg};border:1px solid ${st.b};color:${st.t}">${st.e} ${esc(s.name)}</span>`;
+  }).join('');
+  document.getElementById('sh-chips').innerHTML = chips;
+
+  // Build grouped article list
+  const arts = [...(ev.source_articles||[])].sort((a,b)=>new Date(b.published_at)-new Date(a.published_at));
+  const groups = new Map();
+  arts.forEach(a=>{ const l=dayLabel(a.published_at); if(!groups.has(l)) groups.set(l,[]); groups.get(l).push(a); });
+
+  let html='', i=0;
+  for(const [label, list] of groups){
+    html+=`<div style="padding:8px 20px 4px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25)">${esc(label)}</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.06)"></div>
+    </div>`;
+    list.forEach(a=>{
+      i++;
+      html+=`<a href="${esc(a.url)}" target="_blank" rel="noopener" class="art-row">
+        <div class="art-num">${i}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;font-weight:500;color:#fafafa;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(a.title)}</p>
+          <p style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px;display:flex;align-items:center;gap:4px">
+            <span style="color:rgba(255,255,255,.5);font-weight:500">${esc(a.source_name||a.feed_name||'Source')}</span>
+            · ${relTime(a.published_at)}
+          </p>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${g[0]}" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><path d="M7 7h10v10M7 17 17 7"/></svg>
+      </a>`;
     });
-  });
+  }
+  document.getElementById('sh-articles').innerHTML = html;
+  document.getElementById('sheet-scroll').scrollTop = 0;
+  document.getElementById('sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
-// ── Fetch + render ────────────────────────────────────────────────────────────
-async function loadBrief() {
-  const $load  = document.getElementById('loading');
-  const $err   = document.getElementById('error-state');
-  const $evts  = document.getElementById('events');
-  const $sub   = document.getElementById('subtitle');
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
-  $load.classList.remove('hidden');
-  $err.classList.add('hidden');
-  $evts.classList.add('hidden');
-  $evts.innerHTML = '';
+async function shareEvent(){
+  if(!_activeEv) return;
+  const text = `${_activeEv.event_heading}\n\n${(_activeEv.source_articles||[]).length} sources · Signal Brief`;
+  try {
+    if(navigator.share) await navigator.share({title:_activeEv.event_heading,text});
+    else { await navigator.clipboard.writeText(text); }
+  } catch{}
+}
+
+// ── Load & render ─────────────────────────────────────────────────────────────
+async function loadBrief(){
+  const $l=$('loading'), $e=$('error-state'), $ev=$('events'), $sub=$('subtitle');
+  $l.style.display='flex'; $l.style.flexDirection='column'; $l.style.gap='16px';
+  $e.style.display='none'; $ev.style.display='none'; $ev.innerHTML='';
 
   try {
-    const res = await fetch(API + '/brief');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const { brief, meta } = await res.json();
+    const res = await fetch(API+'/brief');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const {brief,meta} = await res.json();
 
-    const age = meta?.age_minutes != null
-      ? (meta.age_minutes < 60
-          ? Math.round(meta.age_minutes) + 'm ago'
-          : Math.round(meta.age_minutes/60) + 'h ago')
+    const age = meta?.age_minutes!=null
+      ? (meta.age_minutes<60 ? Math.round(meta.age_minutes)+'m ago' : Math.round(meta.age_minutes/60)+'h ago')
       : '';
+    $sub.innerHTML = `<span style="color:rgba(255,255,255,.5)">Top ${brief.events.length} signals</span> · ${age}${brief.is_stale?' <span style="color:#fbbf24">⚠ stale</span>':''}`;
 
-    $sub.innerHTML = `Top ${brief.events.length} stories · Updated ${age}`
-      + (brief.is_stale ? ' <span style="color:#fbbf24">⚠ stale</span>' : '');
+    window.__evs = brief.events;
+    $ev.innerHTML = brief.events.map((ev,i)=>renderCard(ev,i)).join('');
+    $l.style.display='none';
+    $ev.style.display='flex'; $ev.style.flexDirection='column'; $ev.style.gap='16px';
 
-    $evts.innerHTML = brief.events.map(renderCard).join('');
-    window.__brief_events = brief.events;   // stored for panel access
-    $load.classList.add('hidden');
-    $evts.classList.remove('hidden');
-    animateBars();
+    // Animate rings after paint
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.querySelectorAll('.ring-fill').forEach(el=>{
+        el.style.strokeDashoffset = el.getAttribute('data-offset');
+      });
+    }));
 
-  } catch(err) {
-    $load.classList.add('hidden');
-    document.getElementById('error-msg').textContent =
-      err.message + ' — is the API running on ' + API + '?';
-    $err.classList.remove('hidden');
+  } catch(err){
+    $l.style.display='none';
+    $('error-msg').textContent = err.message + ' — is API running?';
+    $e.style.display='block';
     console.error('Signal Brief:', err);
   }
 }
 
-// ── Article list panel ───────────────────────────────────────────────────────
-let _activeEvent = null;
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function $(id){ return document.getElementById(id); }
 
-function sameDay(a, b) {
-  return a.getFullYear() === b.getFullYear() &&
-         a.getMonth() === b.getMonth() &&
-         a.getDate() === b.getDate();
+// Live clock in status bar
+function tickClock(){
+  const now=new Date();
+  $('sb-time').textContent = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' AM','').replace(' PM','');
 }
 
-function dayLabel(iso) {
-  const d   = new Date(iso);
-  const now = new Date();
-  const yes = new Date(now); yes.setDate(now.getDate() - 1);
-  if (sameDay(d, now)) return 'Today';
-  if (sameDay(d, yes)) return 'Yesterday';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
+// Escape key closes sheet
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
 
-function groupByDay(articles) {
-  const sorted = [...articles].sort(
-    (a, b) => new Date(b.published_at) - new Date(a.published_at)
-  );
-  const map = new Map();
-  for (const art of sorted) {
-    const lbl = dayLabel(art.published_at);
-    if (!map.has(lbl)) map.set(lbl, []);
-    map.get(lbl).push(art);
-  }
-  return map;  // Map<label, articles[]>
-}
-
-function openArticleList(ev) {
-  if (!ev) return;
-  _activeEvent = ev;
-
-  // Populate header
-  document.getElementById('panel-heading').textContent = ev.event_heading || '';
-
-  // Sector chips
-  const meta = document.getElementById('panel-meta');
-  meta.innerHTML = `<span class="text-xs text-zinc-500">
-      ${(ev.source_articles||[]).length} sources
-    </span>`
-    + (ev.sectors_impacted || []).slice(0, 3).map(s => {
-        const st = sectorStyle(s.name);
-        return `<span style="background:${st.bg};border:1px solid ${st.border};color:${st.text}"
-                      class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full">
-                  ${st.emoji} ${escHtml(s.name)}
-                </span>`;
-      }).join('');
-
-  // Trend insight
-  const insight = document.getElementById('panel-insight');
-  if (ev.trend_insight) {
-    insight.textContent = ev.trend_insight;
-    insight.classList.remove('hidden');
-  } else {
-    insight.classList.add('hidden');
-  }
-
-  // Build article list grouped by day
-  const groups = groupByDay(ev.source_articles || []);
-  let html = '';
-  for (const [label, arts] of groups) {
-    html += `<div class="date-header">
-      <div class="date-hr"></div>
-      <span style="color:#71717a;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">${escHtml(label)}</span>
-      <div class="date-hr"></div>
-    </div>`;
-    for (const art of arts) {
-      html += `
-      <a href="${escHtml(art.url)}" target="_blank" rel="noopener noreferrer"
-         class="article-row" aria-label="${escHtml(art.title)} from ${escHtml(art.source_name)}">
-        <div style="flex:1">
-          <p class="art-title">${escHtml(art.title)}</p>
-          <p class="art-meta"><span>${escHtml(art.source_name || art.feed_name)}</span> · ${relTime(art.published_at)}</p>
-        </div>
-        <span class="article-arrow" aria-hidden="true">↗</span>
-      </a>`;
-    }
-  }
-  document.getElementById('panel-articles').innerHTML = html;
-  document.getElementById('panel-body').scrollTop = 0;
-
-  // Open panel + trap scroll on body
-  document.getElementById('article-panel').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeArticleList() {
-  document.getElementById('article-panel').classList.remove('open');
-  document.body.style.overflow = '';
-  _activeEvent = null;
-}
-
-async function shareEvent() {
-  if (!_activeEvent) return;
-  const count = (_activeEvent.source_articles || []).length;
-  const text  = `${_activeEvent.event_heading}\n\n${count} source${count!==1?'s':''} · Signal Brief`;
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: _activeEvent.event_heading, text });
-    } else {
-      await navigator.clipboard.writeText(text);
-      alert('Copied to clipboard!');
-    }
-  } catch { /* user cancelled */ }
-}
-
-// Close panel on Escape key
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeArticleList();
-});
-
+// Boot
+tickClock(); setInterval(tickClock,30000);
 document.addEventListener('DOMContentLoaded', loadBrief);
 </script>
 </body>
