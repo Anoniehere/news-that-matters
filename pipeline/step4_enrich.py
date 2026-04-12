@@ -68,27 +68,39 @@ FINANCIAL_ADVICE_PHRASES = [
     "price target", "stock pick", "you should purchase",
 ]
 
-SYSTEM_PROMPT = """You are a senior intelligence analyst writing for busy Silicon Valley
+SYSTEM_PROMPT = """You are a senior geopolitical intelligence analyst writing for busy Silicon Valley
 professionals aged 28–45 — product managers, startup founders, and early-stage investors.
-They are smart, time-pressed, and value signal over noise.
+They are smart, time-pressed, and value signal over noise. They need to understand how
+global power dynamics, trade conflicts, and national security events affect their work.
+
+SCOPE: You analyse GEOPOLITICAL events only — international relations, diplomatic moves,
+trade wars and sanctions, military conflicts, great-power competition, foreign policy
+decisions with US or global impact. If a cluster of articles is not geo-political, skip it.
 
 STRICT RULES you must follow:
 1. Only use facts present in the SOURCE ARTICLES provided. Never invent events, dates,
    people, companies, or statistics.
 2. Do NOT give financial advice. Do not suggest buying, selling, or holding any asset.
 3. Write in clear, direct prose. No bullet points. No headers inside fields.
-4. Tailor "why_it_matters" specifically to a Silicon Valley professional — mention
-   implications for tech hiring, startup funding, regulation, AI development, or
-   competitive dynamics as relevant.
+4. Tailor "why_it_matters" specifically to a Silicon Valley professional — explain how
+   the geopolitical event ripples into tech supply chains, AI export controls, startup
+   funding (US-China investment restrictions), talent/visa policy, data sovereignty,
+   satellite/telecom competition, or regulatory risk.
 5. Return ONLY valid JSON matching the schema below. No extra commentary.
-6. BREVITY IS MANDATORY: summary and why_it_matters must each be 3 to 4 sentences maximum.
-   Every sentence must earn its place. Cut anything redundant.
+6. LENGTH GUARDRAIL:
+   - "summary":        minimum 4 sentences, maximum 8 sentences.
+     Cover: what happened, who is involved, when, and the immediate consequence.
+     Do NOT truncate mid-thought. Every sentence must be complete.
+   - "why_it_matters": minimum 4 sentences, maximum 8 sentences.
+     Cover: direct impact on Silicon Valley professionals, second-order effects,
+     what to watch for next, and one concrete implication for tech/startup ecosystem.
+     Do NOT truncate mid-thought. Every sentence must be complete.
 
 OUTPUT JSON SCHEMA:
 {
-  "event_heading":     "<string — the thesis in 10-15 words>",
-  "summary":           "<string — 3 to 4 sentences MAX. What happened, facts only. Be concise.>",
-  "why_it_matters":    "<string — 3 to 4 sentences MAX, Silicon Valley lens. Be concise.>",
+  "event_heading":     "<string — the geopolitical thesis in 10-15 words>",
+  "summary":           "<string — 4-8 complete sentences. What happened, who, when, consequence.>",
+  "why_it_matters":    "<string — 4-8 complete sentences, Silicon Valley geo-political lens.>",
   "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
   "timeline_context":  "<string — 1-2 sentences: when this started + what happens next>"
 }
@@ -133,6 +145,22 @@ def _validate_llm_dict(raw: dict) -> None:
     for field in ("event_heading", "summary", "why_it_matters", "timeline_context"):
         if not isinstance(raw[field], str) or not raw[field].strip():
             raise ValueError(f"'{field}' must be a non-empty string")
+
+    # Sentence-count guardrail (PRD: summary + why_it_matters → 4-8 sentences each).
+    # Count by splitting on sentence-ending punctuation followed by whitespace.
+    import re as _re
+    _sent_split = _re.compile(r'(?<=[.!?])\s+')
+    for field in ("summary", "why_it_matters"):
+        sentences = [s for s in _sent_split.split(raw[field].strip()) if s.strip()]
+        if len(sentences) < 4:
+            raise ValueError(
+                f"'{field}' has only {len(sentences)} sentence(s) — minimum is 4. "
+                f"LLM truncated. Retrying."
+            )
+        if len(sentences) > 8:
+            # Soft trim instead of rejecting — preserves good content
+            log.warning("'%s' has %d sentences — trimming to 8.", field, len(sentences))
+            raw[field] = " ".join(sentences[:8])
 
     if not isinstance(raw["sectors_impacted"], list) or len(raw["sectors_impacted"]) == 0:
         raise ValueError("sectors_impacted must be a non-empty list")

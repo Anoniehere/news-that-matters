@@ -32,47 +32,94 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Feed configuration — US-focused, topic-diverse
+# Feed configuration — geo-politics focused (US geopolitics, international
+# relations, trade coercion, national security, global conflict)
 # ---------------------------------------------------------------------------
 
 FEEDS: list[dict[str, str]] = [
     {
-        "name": "US Top Stories",
-        "url": "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
-    },
-    {
-        "name": "Technology",
+        "name": "US Geopolitics & Diplomacy",
         "url": (
             "https://news.google.com/rss/search"
-            "?q=US+technology+AI+tech+company+when:4d"
+            "?q=US+foreign+policy+diplomacy+sanctions+geopolitics+when:4d"
             "&hl=en-US&gl=US&ceid=US:en"
         ),
     },
     {
-        "name": "US Politics",
+        "name": "US-China & Trade Wars",
         "url": (
             "https://news.google.com/rss/search"
-            "?q=US+politics+congress+senate+white+house+when:4d"
+            "?q=US+China+trade+war+tariffs+Taiwan+when:4d"
             "&hl=en-US&gl=US&ceid=US:en"
         ),
     },
     {
-        "name": "Economy",
+        "name": "Global Conflict & Security",
         "url": (
             "https://news.google.com/rss/search"
-            "?q=US+economy+federal+reserve+inflation+markets+when:4d"
+            "?q=war+conflict+Russia+Ukraine+NATO+Israel+Middle+East+when:4d"
             "&hl=en-US&gl=US&ceid=US:en"
         ),
     },
     {
-        "name": "AI & Science",
+        "name": "International Trade & Sanctions",
         "url": (
             "https://news.google.com/rss/search"
-            "?q=artificial+intelligence+AI+machine+learning+when:4d"
+            "?q=tariff+trade+deal+sanctions+WTO+G7+G20+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "US National Security",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=national+security+Pentagon+State+Department+defense+intelligence+when:4d"
             "&hl=en-US&gl=US&ceid=US:en"
         ),
     },
 ]
+
+# ---------------------------------------------------------------------------
+# Geo-politics relevance guardrail
+# Any article that matches ZERO of these keywords is dropped before clustering.
+# Prevents non-geo-political stories (sports, entertainment, pure tech) from
+# contaminating the feed — the RSS feeds can still surface off-topic results.
+# ---------------------------------------------------------------------------
+
+_GEO_KEYWORDS: frozenset[str] = frozenset({
+    # Diplomacy & institutions
+    "diplomacy", "diplomatic", "foreign policy", "bilateral", "multilateral",
+    "treaty", "alliance", "united nations", "embassy", "consul",
+    "nato", "g7", "g20", "wto", "imf", "world bank", "un ",
+    # Trade & economic coercion
+    "tariff", "trade ", "trade deal", "sanction", "embargo", "export ban",
+    "import", "supply chain", "protectionism", "trade deficit", "trade surplus",
+    # Countries / regions with geopolitical salience
+    "china", "russia", "ukraine", "iran", "israel", "taiwan", "north korea",
+    "middle east", "europe", "eu ", "india", "pakistan", "saudi",
+    "britain", "uk ", "japan", "south korea", "australia", "mexico",
+    "iran", "turkey", "venezuela", "cuba",
+    # Conflict & security
+    "war", "conflict", "military", "troops", "armed forces", "missile",
+    "nuclear", "intelligence", "cia", "pentagon", "defense", "deterrence",
+    "national security", "state department", "geopolit",
+    # US executive / international decisions
+    "white house", "president", "administration", "executive order",
+    "secretary of state", "national security council", "foreign minister",
+    # Strategic competition
+    "superpower", "great power", "hegemony", "sphere of influence",
+    "cold war", "proxy", "coercion", "influence operation",
+})
+
+
+def _is_geopolitical(article: "Article") -> bool:
+    """Return True if article text contains at least one geo-politics keyword.
+
+    Operates on title + body_snippet (already lowercase-safe via simple .lower()).
+    This is a fast O(k) keyword scan — no LLM needed at fetch time.
+    """
+    haystack = (article.title + " " + (article.body_snippet or "")).lower()
+    return any(kw in haystack for kw in _GEO_KEYWORDS)
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
@@ -167,13 +214,19 @@ def fetch_all_feeds(max_age_days: int = 4) -> FetchResult:
             for a in articles:
                 # normalise title for dedup: lower + strip punctuation/source suffix
                 title_key = a.title.split(" - ")[0].lower().strip()
-                if a.url and a.url not in seen_urls and title_key not in seen_titles:
+                if (
+                    a.url
+                    and a.url not in seen_urls
+                    and title_key not in seen_titles
+                    and _is_geopolitical(a)   # ← geo-politics guardrail
+                ):
                     seen_urls.add(a.url)
                     seen_titles.add(title_key)
                     unique.append(a)
 
             all_articles.extend(unique)
             feed_counts[feed_name] = len(unique)
+            log.info("Step 1: '%s' → %d geo-political articles (deduped)", feed_name, len(unique))
 
     log.info("Step 1: Total unique articles fetched: %d", len(all_articles))
     return FetchResult(
