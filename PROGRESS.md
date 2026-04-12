@@ -19,10 +19,18 @@ At the end of each session:
 ## Current Focus
 
 ```
-▶ ACTIVE MILESTONE:  M6 — Article List Screen
-  Start date:        2026-04-11
-  Target complete:   Day 8 (2-week sprint plan)
-  Blocking anything: M7
+▶ ACTIVE MILESTONE:  M7 — Deploy + QA
+  Start date:        2026-04-12
+  Target complete:   Day 10 (2-week sprint plan)
+  Blocking anything: nothing — this is the finish line
+
+M6 completed:
+  - ArticleItem.tsx: article row, expo-web-browser tap, 44pt tap targets, a11y
+  - DateGroupHeader.tsx: sticky ─── Today / Yesterday / Apr 8 ─── divider
+  - ArticleListScreen.tsx: SectionList, date-group logic, share button (RN Share API),
+    trend_insight pill, sticky disclaimer footer, empty state, back nav
+  - Expo web build: zero errors, 815KB bundle, bundled in 2.4s ✅
+  - All M6 exit criteria met ✅
 
 M5 completed:
   - mobile/ scaffold: package.json, tsconfig, app.json, babel.config.js
@@ -92,8 +100,8 @@ M6 next steps:
 | M3 | LLM Enrichment | ✅ Done | Days 3–4 | 2026-04-09 | 2026-04-08 |
 | M4 | API + Cache + Scheduler | ✅ Done | Day 5 | 2026-04-10 | 2026-04-10 |
 | M5 | Mobile Home Screen | ✅ Done | Days 6-7 | 2026-04-11 | 2026-04-11 |
-| M6 | Article List Screen | 🔲 Not started | Day 8 | — | — |
-| M7 | Deploy + QA | 🔲 Not started | Days 9–10 | — | — |
+| M6 | Article List Screen | ✅ Done | Day 8 | 2026-04-12 | 2026-04-12 |
+| M7 | Deploy + QA | 🔄 In progress | Days 9–10 | 2026-04-12 | — |
 
 **Status legend:** 🔲 Not started | 🔄 In progress | ✅ Done | 🚧 Blocked
 
@@ -208,20 +216,20 @@ M6 next steps:
 
 ## M6 — Article List Screen
 
-**Target:** Days 20–22 | **Status:** 🔲 Not started
+**Target:** Days 20–22 | **Status:** ✅ Done
 
 ### Exit Criteria
-- [ ] `mobile/screens/ArticleListScreen.tsx` — full article list per PRD §8.8
-- [ ] `mobile/components/ArticleItem.tsx` — single article row
-- [ ] `mobile/components/DateGroupHeader.tsx` — date section headers
-- [ ] Tap EventCard → navigate to ArticleListScreen for that event
-- [ ] Articles listed newest → oldest, grouped by calendar day
-- [ ] Relative timestamps correct ("2 hours ago", "Yesterday", date string)
-- [ ] Tap article → opens in `expo-web-browser` (in-app sheet)
-- [ ] Share button → native share sheet with heading + source count
-- [ ] Sticky disclaimer footer always visible
-- [ ] Back navigation works (← and swipe gesture)
-- [ ] All items labelled for screen reader
+- [x] `mobile/screens/ArticleListScreen.tsx` — full article list per PRD §8.8
+- [x] `mobile/components/ArticleItem.tsx` — single article row
+- [x] `mobile/components/DateGroupHeader.tsx` — date section headers
+- [x] Tap EventCard → navigate to ArticleListScreen for that event
+- [x] Articles listed newest → oldest, grouped by calendar day
+- [x] Relative timestamps correct ("2 hours ago", "Yesterday", date string)
+- [x] Tap article → opens in `expo-web-browser` (in-app sheet)
+- [x] Share button → native share sheet with heading + source count
+- [x] Sticky disclaimer footer always visible
+- [x] Back navigation works (← and swipe gesture)
+- [x] All items labelled for screen reader
 
 ### Notes
 *(Add session notes here as work progresses)*
@@ -252,26 +260,26 @@ M6 next steps:
 ## Next Session: Start Here
 
 ```
-► START M6 — Article List Screen. Day 8 of 10.
+► START M7 — Deploy + QA. Day 9 of 10.
 
 Context:
-  M5 done. HomeScreen renders EventCards from real API data.
-  Tapping a card navigates to ArticleListScreen (currently a placeholder).
-  M6 fills in the real ArticleListScreen per PRD §8.8.
+  M6 done. All screens built. Full mobile app works end-to-end in Expo web.
+  API is live on localhost:8001. Next: production deploy + QA pass.
 
-Files to build:
-  1. mobile/components/ArticleItem.tsx      — row: title, source, relative timestamp, external link icon
-  2. mobile/components/DateGroupHeader.tsx  — section header: "Today" / "Yesterday" / "Apr 8"
-  3. mobile/screens/ArticleListScreen.tsx   — SectionList + back nav + share + disclaimer footer
+Tasks:
+  1. Switch API_BASE in services/api.ts to production URL
+  2. 50-run LLM red-team (hallucination + financial advice check)
+  3. WCAG 2.2 AA contrast verification (all text + UI components)
+  4. E2E flow: home loads → tap card → article list → tap article → browser
+  5. Deploy FastAPI to Render/Railway/Fly.io (HTTPS, always-on, env vars)
+  6. Expo Go QR code for physical device testing
+  7. is_stale banner appears if pipeline down > 2 hours
 
 Done when:
-  - Tap EventCard on HomeScreen → ArticleListScreen with that event's articles
-  - Articles grouped by day (Today / Yesterday / date), sorted newest→oldest
-  - Tap article row → opens URL in expo-web-browser in-app sheet
-  - Share button → native Share sheet (event heading + source count)
-  - Sticky disclaimer footer always visible
-  - Back (button + swipe) returns to HomeScreen
-  - Expo web preview renders correctly
+  - Production API URL works from real device (not localhost)
+  - 50 LLM runs: 0 financial advice outputs, 0 flagged hallucinations
+  - All text passes 4.5:1 contrast (WCAG AA)
+  - Full E2E navigation works on real device via Expo Go
 ```
 
 ---
