@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚡ Signal Brief</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+    .font-display { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
+    .trend-bar-fill { transition: width 0.9s cubic-bezier(0.4,0,0.2,1); }
+    .card-enter { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .card-enter:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.15); }
+    .dashed { border-top: 1.5px dashed #3F3F46; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #09090B; }
+    ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 3px; }
+  </style>
+</head>
+
+<body class="min-h-full bg-zinc-950 text-zinc-100">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="font-display font-extrabold text-xl text-white tracking-tight">⚡ Signal Brief</h1>
+        <p id="subtitle" class="text-xs text-zinc-500 mt-0.5">Loading…</p>
+      </div>
+      <button onclick="loadBrief()"
+        class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5
+               rounded-full border border-zinc-700 transition-colors">
+        ↻ Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-2xl mx-auto px-4 py-6 space-y-5" id="main">
+
+    <!-- Loading -->
+    <div id="loading" class="flex flex-col items-center justify-center py-24 gap-4">
+      <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-zinc-400 text-sm">Fetching Signal Brief…</p>
+    </div>
+
+    <!-- Error -->
+    <div id="error-state" class="hidden bg-zinc-900 border border-rose-800/60 rounded-2xl p-6 text-center">
+      <p class="text-rose-400 font-semibold mb-1">⚠ Could not load brief</p>
+      <p id="error-msg" class="text-zinc-400 text-sm mb-4 font-mono"></p>
+      <button onclick="loadBrief()"
+        class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors">
+        Try again
+      </button>
+    </div>
+
+    <!-- Events -->
+    <div id="events" class="space-y-5 hidden"></div>
+  </main>
+
+  <!-- Disclaimer -->
+  <footer class="max-w-2xl mx-auto px-4 pb-10 pt-2">
+    <p class="text-center text-zinc-600 text-xs leading-relaxed">
+      Signal Brief is for informational purposes only.<br>
+      Not financial, legal, or investment advice. Always verify with primary sources.
+    </p>
+  </footer>
+
+<script>
+// ── API endpoint ─────────────────────────────────────────────────────────────
+const API = 'http://127.0.0.1:8001';
+
+// ── Sector colours ───────────────────────────────────────────────────────────
+const SECTORS = {
+  'Technology':     { bg:'#1e1b4b', border:'#4338ca', text:'#a5b4fc', emoji:'💻' },
+  'Finance':        { bg:'#064e3b', border:'#059669', text:'#6ee7b7', emoji:'💰' },
+  'Healthcare':     { bg:'#4c0519', border:'#be123c', text:'#fda4af', emoji:'🏥' },
+  'Energy':         { bg:'#451a03', border:'#b45309', text:'#fcd34d', emoji:'⚡' },
+  'Policy & Regulation':         { bg:'#2e1065', border:'#7c3aed', text:'#c4b5fd', emoji:'⚖️' },
+  'Defence':        { bg:'#450a0a', border:'#dc2626', text:'#fca5a5', emoji:'🛡' },
+  'Trade':          { bg:'#082f49', border:'#0369a1', text:'#7dd3fc', emoji:'🌐' },
+  'Labour & Employment':         { bg:'#042f2e', border:'#0f766e', text:'#5eead4', emoji:'👷' },
+  'Real Estate':    { bg:'#431407', border:'#c2410c', text:'#fdba74', emoji:'🏠' },
+  'Consumer Goods': { bg:'#500724', border:'#be185d', text:'#f9a8d4', emoji:'🛒' },
+  'Retail & E-commerce': { bg:'#500724', border:'#be185d', text:'#f9a8d4', emoji:'🛒' },
+  'Media':          { bg:'#4a044e', border:'#a21caf', text:'#e879f9', emoji:'📺' },
+  'Education':      { bg:'#083344', border:'#0891b2', text:'#67e8f9', emoji:'📚' },
+};
+
+function sectorStyle(name) {
+  return SECTORS[name] || { bg:'#1c1c1e', border:'#52525b', text:'#d4d4d8', emoji:'📌' };
+}
+
+// ── Trend colour ─────────────────────────────────────────────────────────────
+function trendColor(s) {
+  if (s >= 0.7) return { bar:'#34d399', text:'#34d399' };
+  if (s >= 0.4) return { bar:'#fbbf24', text:'#fbbf24' };
+  return               { bar:'#f87171', text:'#f87171' };
+}
+
+// ── Accent gradient per rank ─────────────────────────────────────────────────
+const ACCENTS = [
+  'linear-gradient(90deg,#6366f1,#8b5cf6,#a855f7)',
+  'linear-gradient(90deg,#0ea5e9,#06b6d4,#14b8a6)',
+  'linear-gradient(90deg,#f43f5e,#ec4899,#d946ef)',
+];
+function accent(rank) { return ACCENTS[(rank-1) % ACCENTS.length]; }
+
+// ── Relative time ────────────────────────────────────────────────────────────
+function relTime(iso) {
+  if (!iso) return '';
+  try {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 3600)  return Math.round(s/60)  + 'm ago';
+    if (s < 86400) return Math.round(s/3600) + 'h ago';
+    return Math.round(s/86400) + 'd ago';
+  } catch { return ''; }
+}
+
+// ── Render event card ────────────────────────────────────────────────────────
+function renderCard(ev) {
+  const pct  = Math.round(ev.trend_score * 100);
+  const tc   = trendColor(ev.trend_score);
+  const ac   = accent(ev.rank);
+
+  const sectorChips = (ev.sectors_impacted || []).slice(0,5).map(s => {
+    const st = sectorStyle(s.name);
+    return `<span style="background:${st.bg};border:1px solid ${st.border};color:${st.text}"
+                  class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium">
+              ${st.emoji} ${s.name}
+            </span>`;
+  }).join('');
+
+  const articleRows = (ev.source_articles || []).slice(0,3).map(a => `
+    <a href="${escHtml(a.url)}" target="_blank" rel="noopener noreferrer"
+       style="background:#27272a;border:1px solid #3f3f46"
+       class="flex items-start gap-3 p-3 rounded-xl hover:border-indigo-600 transition-all group block">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-zinc-200 font-medium leading-snug line-clamp-2 group-hover:text-white">
+          ${escHtml(a.title)}
+        </p>
+        <p class="text-xs text-zinc-500 mt-1">
+          ${escHtml(a.source_name || a.feed_name || 'Source')} · ${relTime(a.published_at)}
+        </p>
+      </div>
+      <span class="text-zinc-500 group-hover:text-indigo-400 transition-colors text-sm flex-shrink-0 mt-0.5">↗</span>
+    </a>`).join('');
+
+  return `
+  <article style="background:#18181b;border:1px solid #27272a"
+           class="rounded-2xl overflow-hidden card-enter">
+
+    <!-- Accent bar -->
+    <div style="height:4px;background:${ac}"></div>
+
+    <div class="p-5">
+
+      <!-- Rank + trend bar -->
+      <div class="flex items-center gap-3 mb-3">
+        <span class="text-xs font-bold text-zinc-500 tracking-widest">#${ev.rank}</span>
+        <div style="background:#27272a" class="flex-1 h-1.5 rounded-full overflow-hidden">
+          <div style="width:0%;background:${tc.bar};transition:width 0.9s cubic-bezier(0.4,0,0.2,1)"
+               class="h-full rounded-full" data-width="${pct}%"></div>
+        </div>
+        <span style="color:${tc.text}" class="text-xs font-semibold whitespace-nowrap">
+          TRENDING ${pct}%
+        </span>
+      </div>
+
+      <!-- Heading -->
+      <h2 class="font-display font-bold text-lg text-white leading-snug mb-4">
+        ${escHtml(ev.event_heading)}
+      </h2>
+
+      <!-- Dashed divider -->
+      <div class="dashed mb-4"></div>
+
+      <!-- Summary -->
+      <p class="text-sm text-zinc-400 leading-relaxed mb-4">${escHtml(ev.summary)}</p>
+
+      <!-- Why it matters -->
+      <div style="background:#27272a;border:1px solid #3f3f46" class="rounded-xl p-4 mb-4">
+        <p class="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-2">
+          Why it matters
+        </p>
+        <p class="text-sm text-zinc-300 leading-relaxed">${escHtml(ev.why_it_matters)}</p>
+      </div>
+
+      <!-- Sector chips -->
+      ${sectorChips ? `<div class="flex flex-wrap gap-2 mb-4">${sectorChips}</div>` : ''}
+
+      <!-- Source articles -->
+      ${articleRows ? `
+        <div class="space-y-2">
+          <p class="text-xs font-semibold text-zinc-500 tracking-wider uppercase mb-2">Sources</p>
+          ${articleRows}
+        </div>` : ''}
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between mt-4 pt-3" style="border-top:1px solid #27272a">
+        <span class="text-xs text-zinc-600">
+          ${(ev.source_articles||[]).length} source${ev.source_articles?.length!==1?'s':''}
+        </span>
+        <span class="text-xs text-zinc-600">${relTime(ev.enriched_at)}</span>
+      </div>
+
+    </div>
+  </article>`;
+}
+
+// ── XSS guard ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Animate bars ─────────────────────────────────────────────────────────────
+function animateBars() {
+  requestAnimationFrame(() => {
+    document.querySelectorAll('[data-width]').forEach(el => {
+      const w = el.getAttribute('data-width');
+      setTimeout(() => { el.style.width = w; }, 120);
+    });
+  });
+}
+
+// ── Fetch + render ────────────────────────────────────────────────────────────
+async function loadBrief() {
+  const $load  = document.getElementById('loading');
+  const $err   = document.getElementById('error-state');
+  const $evts  = document.getElementById('events');
+  const $sub   = document.getElementById('subtitle');
+
+  $load.classList.remove('hidden');
+  $err.classList.add('hidden');
+  $evts.classList.add('hidden');
+  $evts.innerHTML = '';
+
+  try {
+    const res = await fetch(API + '/brief');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { brief, meta } = await res.json();
+
+    const age = meta?.age_minutes != null
+      ? (meta.age_minutes < 60
+          ? Math.round(meta.age_minutes) + 'm ago'
+          : Math.round(meta.age_minutes/60) + 'h ago')
+      : '';
+
+    $sub.innerHTML = `Top ${brief.events.length} stories · Updated ${age}`
+      + (brief.is_stale ? ' <span style="color:#fbbf24">⚠ stale</span>' : '');
+
+    $evts.innerHTML = brief.events.map(renderCard).join('');
+    $load.classList.add('hidden');
+    $evts.classList.remove('hidden');
+    animateBars();
+
+  } catch(err) {
+    $load.classList.add('hidden');
+    document.getElementById('error-msg').textContent =
+      err.message + ' — is the API running on ' + API + '?';
+    $err.classList.remove('hidden');
+    console.error('Signal Brief:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadBrief);
+</script>
+</body>
+</html>
