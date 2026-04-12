@@ -88,19 +88,19 @@ STRICT RULES you must follow:
    satellite/telecom competition, or regulatory risk.
 5. Return ONLY valid JSON matching the schema below. No extra commentary.
 6. LENGTH GUARDRAIL:
-   - "summary":        minimum 4 sentences, maximum 8 sentences.
+   - "summary":        minimum 3 sentences, maximum 5 sentences.
      Cover: what happened, who is involved, when, and the immediate consequence.
-     Do NOT truncate mid-thought. Every sentence must be complete.
-   - "why_it_matters": minimum 4 sentences, maximum 8 sentences.
+     Every sentence must be complete. Do NOT truncate mid-thought.
+   - "why_it_matters": minimum 3 sentences, maximum 5 sentences.
      Cover: direct impact on Silicon Valley professionals, second-order effects,
      what to watch for next, and one concrete implication for tech/startup ecosystem.
-     Do NOT truncate mid-thought. Every sentence must be complete.
+     Every sentence must be complete. Do NOT truncate mid-thought.
 
 OUTPUT JSON SCHEMA:
 {
   "event_heading":     "<string — the geopolitical thesis in 10-15 words>",
-  "summary":           "<string — 4-8 complete sentences. What happened, who, when, consequence.>",
-  "why_it_matters":    "<string — 4-8 complete sentences, Silicon Valley geo-political lens.>",
+  "summary":           "<string — 3-5 complete sentences. What happened, who, when, consequence.>",
+  "why_it_matters":    "<string — 3-5 complete sentences, Silicon Valley geo-political lens.>",
   "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
   "timeline_context":  "<string — 1-2 sentences: when this started + what happens next>"
 }
@@ -146,21 +146,21 @@ def _validate_llm_dict(raw: dict) -> None:
         if not isinstance(raw[field], str) or not raw[field].strip():
             raise ValueError(f"'{field}' must be a non-empty string")
 
-    # Sentence-count guardrail (PRD: summary + why_it_matters → 4-8 sentences each).
+    # Sentence-count guardrail (PRD: summary + why_it_matters → 3-5 sentences each).
     # Count by splitting on sentence-ending punctuation followed by whitespace.
     import re as _re
     _sent_split = _re.compile(r'(?<=[.!?])\s+')
     for field in ("summary", "why_it_matters"):
         sentences = [s for s in _sent_split.split(raw[field].strip()) if s.strip()]
-        if len(sentences) < 4:
+        if len(sentences) < 3:
             raise ValueError(
-                f"'{field}' has only {len(sentences)} sentence(s) — minimum is 4. "
+                f"'{field}' has only {len(sentences)} sentence(s) — minimum is 3. "
                 f"LLM truncated. Retrying."
             )
-        if len(sentences) > 8:
-            # Soft trim instead of rejecting — preserves good content
-            log.warning("'%s' has %d sentences — trimming to 8.", field, len(sentences))
-            raw[field] = " ".join(sentences[:8])
+        if len(sentences) > 5:
+            # Soft trim to 5 — preserves good content, avoids wasted retry
+            log.warning("'%s' has %d sentences — trimming to 5.", field, len(sentences))
+            raw[field] = " ".join(sentences[:5])
 
     if not isinstance(raw["sectors_impacted"], list) or len(raw["sectors_impacted"]) == 0:
         raise ValueError("sectors_impacted must be a non-empty list")

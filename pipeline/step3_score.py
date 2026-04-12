@@ -277,24 +277,35 @@ def score_clusters(cluster_result: ClusterResult) -> TrendResult:
     """
     Score and rank all clusters. Returns TrendResult with top-N scored clusters.
     Tries pytrends first; if first call fails, switches all remaining to feed_diversity.
+
+    Singleton promotion: when real clusters < TOP_N_LLM, recent singletons are
+    wrapped into synthetic single-article clusters and scored honestly (lower rep
+    score) to fill the output. This prevents the app showing < 3 cards when
+    geo-political news is diverse (many unique events, few repeated ones).
     """
-    clusters = cluster_result.clusters
-    if not clusters:
-        log.warning("Step 3: No clusters to score — returning empty TrendResult")
+    clusters   = cluster_result.clusters
+    singletons = cluster_result.singletons
+
+    if not clusters and not singletons:
+        log.warning("Step 3: No clusters or singletons — returning empty TrendResult")
         return TrendResult(ranked_clusters=[])
 
     log.info("Step 3: Scoring %d clusters…", len(clusters))
 
     # Probe pytrends with the first cluster; if it fails switch all to feed_diversity
-    probe_term    = _extract_search_term(clusters[0])
-    probe_score   = _pytrends_score(probe_term)
-    time.sleep(PYTRENDS_SLEEP)
-    use_pytrends  = probe_score is not None
-
-    if use_pytrends:
-        log.info("Step 3: pytrends is live — using Google Trends for social signal")
+    use_pytrends = False
+    probe_score: float | None = None
+    if clusters:
+        probe_term  = _extract_search_term(clusters[0])
+        probe_score = _pytrends_score(probe_term)
+        time.sleep(PYTRENDS_SLEEP)
+        use_pytrends = probe_score is not None
+        if use_pytrends:
+            log.info("Step 3: pytrends is live — using Google Trends for social signal")
+        else:
+            log.info("Step 3: pytrends unavailable — using feed_diversity for all clusters")
     else:
-        log.info("Step 3: pytrends unavailable — using feed_diversity for all clusters")
+        log.info("Step 3: no real clusters — skipping pytrends, will promote singletons")
 
     scored: list[ScoredCluster] = []
     for i, cluster in enumerate(clusters):
@@ -329,6 +340,42 @@ def score_clusters(cluster_result: ClusterResult) -> TrendResult:
             cluster.cluster_id, cluster.size, rep, soc, trend,
             cluster.headline_article.title[:50],
         )
+
+    # ── Singleton promotion ────────────────────────────────────────────────
+    # If real clusters don't fill TOP_N_LLM slots, promote the most recent
+    # singletons. Each gets a synthetic Cluster with cluster_id < 0 so it's
+    # never confused with a real DBSCAN cluster.
+    # Rep score is capped at 0.4 (single article = inherently less trending)
+    # so promoted singletons always rank below genuine multi-article clusters.
+    if len(scored) < TOP_N_LLM and singletons:
+        needed = TOP_N_LLM - len(scored)
+        recent = sorted(singletons, key=lambda a: a.published_at, reverse=True)
+        log.info(
+            "Step 3: Only %d real clusters — promoting up to %d singletons to fill output.",
+            len(scored), needed,
+        )
+        for i, art in enumerate(recent[:needed]):
+            synth = Cluster(cluster_id=-(i + 1), articles=[art], size=1)
+            # Honest scores: single article = low repetition, single feed = 0 diversity
+            rep   = round(min(0.4, math.log(2) / math.log(max(2, max(
+                (c.size for c in clusters), default=1
+            ) + 1))), 4)
+            soc   = 0.0
+            trend = round(WEIGHT_REP * rep + WEIGHT_SOCIAL * soc, 4)
+            insight = _build_trend_insight(synth, rep, soc, trend, "feed_diversity")
+            scored.append(ScoredCluster(
+                cluster=synth,
+                repetition_score=rep,
+                social_score=soc,
+                trend_score=trend,
+                trend_insight=insight,
+                search_term=_extract_search_term(synth),
+                signal_source="singleton",
+            ))
+            log.info(
+                "  promoted singleton: '%s'",
+                art.title[:60],
+            )
 
     # Sort descending, assign rank, flag top 5 for LLM
     scored.sort(key=lambda s: s.trend_score, reverse=True)

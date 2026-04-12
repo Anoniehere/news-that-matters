@@ -90,8 +90,8 @@ class EnrichedEvent(BaseModel):
     trend_score: float
     trend_insight: str                     # why the score is this number (computed, not LLM)
     event_heading: str                     # ≤ 15 words — the thesis sentence
-    summary: str                           # max 4 sentences, facts only, source-grounded
-    why_it_matters: str                    # max 4 sentences, Silicon Valley persona
+    summary: str                           # 3-5 complete sentences, facts only, source-grounded
+    why_it_matters: str                    # 3-5 complete sentences, Silicon Valley geo-political lens
     sectors_impacted: list[SectorImpact]   # 1–5 items, sorted desc by confidence
     timeline_context: str                  # 1–2 sentences — when + what's next
     source_articles: list[Article]         # raw cluster articles, newest first (UI caps at 3)
