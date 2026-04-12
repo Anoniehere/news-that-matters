@@ -1,4 +1,4 @@
-# ⚡ Signal Brief — Session Context
+# 📰 News That Matters — Session Context
 > Load this file at the start of every AI coding session.
 > It is the single source of truth for "where are we and how does this work."
 
@@ -6,7 +6,7 @@
 
 ## What Is This?
 
-**Signal Brief** is a mobile app (iOS + Android) for Silicon Valley professionals (28–45)
+**News That Matters** is a mobile app (iOS + Android) for Silicon Valley professionals (28–45)
 that surfaces the **top 5 high-impact US news events** daily — with AI-generated
 summaries, causal explanations ("why it matters"), and sector-impact tags.
 

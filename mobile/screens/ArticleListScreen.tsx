@@ -108,7 +108,7 @@ export default function ArticleListScreen({ navigation, route }: Props) {
     try {
       await Share.share({
         title:   event.event_heading,
-        message: `${event.event_heading}\n\n${count} ${count === 1 ? 'source' : 'sources'} · Signal Brief`,
+        message: `${event.event_heading}\n\n${count} ${count === 1 ? 'source' : 'sources'} · News That Matters`,
       });
     } catch {
       // user dismissed — no-op
@@ -210,7 +210,7 @@ function Disclaimer() {
   return (
     <View style={styles.disclaimer}>
       <Text style={styles.disclaimerText}>
-        Signal Brief surfaces trending news for informational purposes only.
+        News That Matters surfaces trending news for informational purposes only.
         Not financial or investment advice. Always verify with primary sources.
       </Text>
     </View>

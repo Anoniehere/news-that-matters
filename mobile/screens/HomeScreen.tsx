@@ -108,7 +108,7 @@ function Header({ meta }: { meta: BriefMeta | null }) {
 
   return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>⚡ Signal Brief</Text>
+      <Text style={styles.headerTitle}>📰 News That Matters</Text>
       <Text style={styles.headerSub}>
         {meta
           ? `Updated ${age}${meta.is_stale ? '  ·  ⚠ stale' : ''}`
@@ -122,7 +122,7 @@ function Footer() {
   return (
     <View style={styles.footer}>
       <Text style={styles.footerText}>
-        Signal Brief surfaces trending news for informational purposes only.
+        News That Matters surfaces trending news for informational purposes only.
         Not financial or investment advice.
       </Text>
     </View>

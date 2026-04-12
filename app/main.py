@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 
     _scheduler = build_scheduler()
     _scheduler.start()
-    log.info("Signal Brief API ✓ ready")
+    log.info("News That Matters API ✓ ready")
 
     yield   # API is serving
 
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 # ── App ──────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="Signal Brief API",
+    title="News That Matters API",
     version="1.0.0",
     description="AI-powered trending news intelligence for Silicon Valley professionals.",
     lifespan=lifespan,

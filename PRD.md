@@ -1,4 +1,4 @@
-# 📰 Signal Brief — Product Requirements Document
+# 📰 News That Matters — Product Requirements Document
 **Version:** 1.1 | **Status:** Implementation Ready | **Date:** 2026-04-08
 **Author:** PM Session w/ Code Puppy 🐶
 **Changelog v1.1:** Milestone-based delivery plan; updated home screen UX (full event cards);
@@ -8,7 +8,7 @@ new article timeline screen; added Section 8 — UX & Frontend Design Specs.
 
 ## 0. TL;DR
 
-> Signal Brief is a mobile app that cuts through news noise for Silicon Valley professionals.
+> News That Matters is a mobile app that cuts through news noise for Silicon Valley professionals.
 > Every time you open it, you see the **top 5 high-impact trending news events** — with
 > AI-generated summaries, causal explanations, and sector-impact analysis — all on the card.
 > Tap any card to dive into the source articles, sorted by recency.
@@ -20,7 +20,7 @@ new article timeline screen; added Section 8 — UX & Frontend Design Specs.
 
 | Field          | Detail |
 |---------------|--------|
-| Product Name  | Signal Brief |
+| Product Name  | News That Matters |
 | Tagline       | *"The news that actually matters to you — explained."* |
 | Platform      | Mobile App — iOS + Android (React Native / Expo) |
 | Target Users  | Working professionals, 28–45, US Silicon Valley |
@@ -470,7 +470,7 @@ SCROLLABLE CONTENT  (FlatList, vertical)
 
   ── BOTTOM FINE PRINT ──────────────────────────────
   Summaries are AI-generated from linked sources.
-  Not financial advice. Signal Brief © 2026
+  Not financial advice. News That Matters © 2026
   Inter 400, 11px, --text-muted, center-aligned
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HOME INDICATOR (system)
@@ -576,7 +576,7 @@ HOME INDICATOR (system)
 
 **Share button behaviour:**
 - Taps → native share sheet
-- Share text: `"{event_heading}" — {article_count} sources via Signal Brief`
+- Share text: `"{event_heading}" — {article_count} sources via News That Matters`
 
 ---
 
@@ -666,7 +666,7 @@ Splash Screen:
 
 ## 12. Open Questions (Decisions Needed Before Dev Starts)
 
-1. **App name final?** "Signal Brief" proposed — confirm or replace.
+1. **App name final?** "News That Matters" ✅ confirmed.
 2. **Hosting budget?** Free tiers (Render/Railway) have cold-start issues; $5–10/mo recommended for always-on.
 3. **RSS feed list?** Need explicit confirmed feeds + paywalled source exclusion list.
 4. **Sector taxonomy?** Lock the allowed sector names before M3 (LLM enrichment). Suggested list in §5.1.
@@ -887,4 +887,4 @@ Splash Screen:
 
 ---
 
-*Signal Brief PRD v1.1 — Code Puppy 🐶 | 2026-04-08*
+*News That Matters PRD v1.2 — Code Puppy 🐶 | 2026-04-08*
