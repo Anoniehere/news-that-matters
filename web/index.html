@@ -17,6 +17,45 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #09090B; }
     ::-webkit-scrollbar-thumb { background: #3F3F46; border-radius: 3px; }
+
+    /* Article list panel */
+    #article-panel {
+      position: fixed; inset: 0; z-index: 100;
+      background: #09090B;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    #article-panel.open { transform: translateX(0); }
+    #panel-body { overflow-y: auto; flex: 1; }
+    .date-header {
+      position: sticky; top: 0; z-index: 10;
+      background: #09090B;
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px;
+    }
+    .date-hr { flex: 1; height: 1px; background: #3F3F46; }
+    .article-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; min-height: 44px;
+      border-bottom: 1px solid #27272a;
+      background: #18181b; cursor: pointer;
+      text-decoration: none; color: inherit;
+      transition: background 0.12s;
+    }
+    .article-row:hover, .article-row:active { background: #27272a; }
+    .article-row .art-title {
+      flex: 1; font-size: 14px; font-weight: 500;
+      color: #fafafa; line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .article-row .art-meta {
+      font-size: 11px; color: #71717a; margin-top: 3px;
+    }
+    .article-row .art-meta span { color: #818cf8; }
+    .article-arrow { color: #818cf8; font-size: 14px; flex-shrink: 0; }
   </style>
 </head>
 
@@ -67,6 +106,43 @@
       Not financial, legal, or investment advice. Always verify with primary sources.
     </p>
   </footer>
+
+<!-- Article list panel (slides in from right) -->
+<div id="article-panel" role="dialog" aria-modal="true" aria-label="Article list">
+
+  <!-- Panel header -->
+  <div style="border-bottom:1px solid #27272a;flex-shrink:0" class="px-4 py-3">
+    <div class="max-w-2xl mx-auto">
+      <div class="flex items-center justify-between mb-3">
+        <button onclick="closeArticleList()"
+          style="min-height:44px"
+          class="text-sm font-medium text-indigo-400 hover:text-indigo-300 px-2 py-1.5 -ml-2 rounded-lg transition-colors"
+          aria-label="Go back">
+          ← Back
+        </button>
+        <button onclick="shareEvent()"
+          style="min-height:44px"
+          class="text-sm font-medium text-indigo-400 hover:text-indigo-300 px-2 py-1.5 rounded-lg transition-colors">
+          Share ⬆
+        </button>
+      </div>
+      <h2 id="panel-heading" class="font-display font-bold text-lg text-white leading-snug mb-2"></h2>
+      <div id="panel-meta" class="flex items-center gap-2 flex-wrap mb-2"></div>
+      <div id="panel-insight"
+           class="hidden text-xs text-zinc-600 italic bg-zinc-900 rounded-lg px-3 py-2">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrollable body -->
+  <div id="panel-body" style="overflow-y:auto;flex:1" class="max-w-2xl mx-auto w-full">
+    <div id="panel-articles"></div>
+    <p class="text-center text-zinc-700 text-xs leading-relaxed px-4 py-6 border-t border-zinc-800 mt-2">
+      Signal Brief is for informational purposes only.<br>
+      Not financial, legal, or investment advice.
+    </p>
+  </div>
+</div>
 
 <script>
 // ── API endpoint ─────────────────────────────────────────────────────────────
@@ -209,7 +285,13 @@ function renderCard(ev) {
         <span class="text-xs text-zinc-600">
           ${(ev.source_articles||[]).length} source${ev.source_articles?.length!==1?'s':''}
         </span>
-        <span class="text-xs text-zinc-600">${relTime(ev.enriched_at)}</span>
+        <button
+          onclick="openArticleList(window.__brief_events[${ev.rank-1}])"
+          class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+          style="min-height:44px;padding:0 4px"
+          aria-label="View all articles for this event">
+          View all sources →
+        </button>
       </div>
 
     </div>
@@ -261,6 +343,7 @@ async function loadBrief() {
       + (brief.is_stale ? ' <span style="color:#fbbf24">⚠ stale</span>' : '');
 
     $evts.innerHTML = brief.events.map(renderCard).join('');
+    window.__brief_events = brief.events;   // stored for panel access
     $load.classList.add('hidden');
     $evts.classList.remove('hidden');
     animateBars();
@@ -273,6 +356,120 @@ async function loadBrief() {
     console.error('Signal Brief:', err);
   }
 }
+
+// ── Article list panel ───────────────────────────────────────────────────────
+let _activeEvent = null;
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function dayLabel(iso) {
+  const d   = new Date(iso);
+  const now = new Date();
+  const yes = new Date(now); yes.setDate(now.getDate() - 1);
+  if (sameDay(d, now)) return 'Today';
+  if (sameDay(d, yes)) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function groupByDay(articles) {
+  const sorted = [...articles].sort(
+    (a, b) => new Date(b.published_at) - new Date(a.published_at)
+  );
+  const map = new Map();
+  for (const art of sorted) {
+    const lbl = dayLabel(art.published_at);
+    if (!map.has(lbl)) map.set(lbl, []);
+    map.get(lbl).push(art);
+  }
+  return map;  // Map<label, articles[]>
+}
+
+function openArticleList(ev) {
+  if (!ev) return;
+  _activeEvent = ev;
+
+  // Populate header
+  document.getElementById('panel-heading').textContent = ev.event_heading || '';
+
+  // Sector chips
+  const meta = document.getElementById('panel-meta');
+  meta.innerHTML = `<span class="text-xs text-zinc-500">
+      ${(ev.source_articles||[]).length} sources
+    </span>`
+    + (ev.sectors_impacted || []).slice(0, 3).map(s => {
+        const st = sectorStyle(s.name);
+        return `<span style="background:${st.bg};border:1px solid ${st.border};color:${st.text}"
+                      class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full">
+                  ${st.emoji} ${escHtml(s.name)}
+                </span>`;
+      }).join('');
+
+  // Trend insight
+  const insight = document.getElementById('panel-insight');
+  if (ev.trend_insight) {
+    insight.textContent = ev.trend_insight;
+    insight.classList.remove('hidden');
+  } else {
+    insight.classList.add('hidden');
+  }
+
+  // Build article list grouped by day
+  const groups = groupByDay(ev.source_articles || []);
+  let html = '';
+  for (const [label, arts] of groups) {
+    html += `<div class="date-header">
+      <div class="date-hr"></div>
+      <span style="color:#71717a;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">${escHtml(label)}</span>
+      <div class="date-hr"></div>
+    </div>`;
+    for (const art of arts) {
+      html += `
+      <a href="${escHtml(art.url)}" target="_blank" rel="noopener noreferrer"
+         class="article-row" aria-label="${escHtml(art.title)} from ${escHtml(art.source_name)}">
+        <div style="flex:1">
+          <p class="art-title">${escHtml(art.title)}</p>
+          <p class="art-meta"><span>${escHtml(art.source_name || art.feed_name)}</span> · ${relTime(art.published_at)}</p>
+        </div>
+        <span class="article-arrow" aria-hidden="true">↗</span>
+      </a>`;
+    }
+  }
+  document.getElementById('panel-articles').innerHTML = html;
+  document.getElementById('panel-body').scrollTop = 0;
+
+  // Open panel + trap scroll on body
+  document.getElementById('article-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeArticleList() {
+  document.getElementById('article-panel').classList.remove('open');
+  document.body.style.overflow = '';
+  _activeEvent = null;
+}
+
+async function shareEvent() {
+  if (!_activeEvent) return;
+  const count = (_activeEvent.source_articles || []).length;
+  const text  = `${_activeEvent.event_heading}\n\n${count} source${count!==1?'s':''} · Signal Brief`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: _activeEvent.event_heading, text });
+    } else {
+      await navigator.clipboard.writeText(text);
+      alert('Copied to clipboard!');
+    }
+  } catch { /* user cancelled */ }
+}
+
+// Close panel on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeArticleList();
+});
 
 document.addEventListener('DOMContentLoaded', loadBrief);
 </script>

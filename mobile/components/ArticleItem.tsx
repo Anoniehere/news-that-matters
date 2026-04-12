@@ -11,6 +11,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import React from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -29,11 +30,17 @@ interface Props {
 
 export default function ArticleItem({ article }: Props) {
   const handlePress = async () => {
-    await WebBrowser.openBrowserAsync(article.url, {
-      toolbarColor: Colors.bgSurface,
-      controlsColor: Colors.accent,
-      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-    });
+    // PAGE_SHEET is iOS/Android only — on web it falls back to new tab
+    const options: WebBrowser.WebBrowserOpenOptions =
+      Platform.OS === 'web'
+        ? {}
+        : {
+            toolbarColor: Colors.bgSurface,
+            controlsColor: Colors.accent,
+            presentationStyle:
+              WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+          };
+    await WebBrowser.openBrowserAsync(article.url, options);
   };
 
   const timestamp = formatRelativeDate(article.published_at);

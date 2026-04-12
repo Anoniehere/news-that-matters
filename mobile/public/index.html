@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <style id="expo-reset">
+      html, body { height: 100%; margin: 0; padding: 0; }
+      body { overflow: hidden; background: #09090B; }
+      #root { display: flex; height: 100%; flex: 1; }
+
+      /* Pre-React loading shell — hidden once React mounts */
+      #pre-load {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: #09090B; gap: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      }
+      #pre-load.hidden { display: none; }
+      .spinner {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: 3px solid #312E81;
+        border-top-color: #818CF8;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .load-text { color: #71717A; font-size: 13px; letter-spacing: 0.04em; }
+
+      /* Error box — shown if JS crashes before React mounts */
+      #crash-box {
+        display: none; position: fixed; inset: 0; z-index: 99999;
+        background: #09090B; padding: 24px;
+        flex-direction: column; justify-content: center; gap: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+        overflow-y: auto;
+      }
+      #crash-box.visible { display: flex; }
+      .crash-title { color: #F87171; font-size: 16px; font-weight: 600; margin: 0; }
+      .crash-msg   { color: #A1A1AA; font-size: 13px; white-space: pre-wrap; margin: 0; background: #18181B; padding: 12px; border-radius: 8px; border: 1px solid #3F3F46; }
+      .crash-hint  { color: #71717A; font-size: 11px; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <!-- Pre-React loading shell -->
+    <div id="pre-load">
+      <div class="spinner"></div>
+      <span class="load-text">Loading Signal Brief…</span>
+    </div>
+
+    <!-- Error surface — shown if bundle crashes before React mounts -->
+    <div id="crash-box">
+      <p class="crash-title">⚡ App failed to start</p>
+      <pre id="crash-msg" class="crash-msg">Unknown error</pre>
+      <p class="crash-hint">Open browser DevTools (⌘⌥I) → Console for full stack trace.</p>
+    </div>
+
+    <!-- Expo app root -->
+    <div id="root"></div>
+
+    <script>
+      // ── Global error interceptor (runs before React mounts) ──────────────
+      // Catches synchronous errors during bundle execution.
+      window.onerror = function(msg, src, line, col, err) {
+        document.getElementById('pre-load').classList.add('hidden');
+        var box = document.getElementById('crash-box');
+        var msgEl = document.getElementById('crash-msg');
+        msgEl.textContent = (err && err.stack) ? err.stack : (msg + '\n' + src + ':' + line);
+        box.classList.add('visible');
+        return false; // let browser log it too
+      };
+
+      // Catches unhandled promise rejections (async crashes before React mounts)
+      window.addEventListener('unhandledrejection', function(ev) {
+        var reason = ev.reason;
+        var text = reason && reason.stack ? reason.stack : String(reason);
+        document.getElementById('pre-load').classList.add('hidden');
+        var box = document.getElementById('crash-box');
+        var msgEl = document.getElementById('crash-msg');
+        msgEl.textContent = 'Unhandled Promise rejection:\n' + text;
+        box.classList.add('visible');
+      });
+
+      // Once React mounts and renders something into #root, hide the pre-loader.
+      // MutationObserver watches for any child added to #root.
+      var observer = new MutationObserver(function() {
+        if (document.getElementById('root').childElementCount > 0) {
+          document.getElementById('pre-load').classList.add('hidden');
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.getElementById('root'), { childList: true });
+    </script>
+
+    <noscript>You need to enable JavaScript to run Signal Brief.</noscript>
+  </body>
+</html>

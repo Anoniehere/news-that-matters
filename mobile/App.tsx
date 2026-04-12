@@ -3,9 +3,6 @@
  * Loads fonts, then renders the navigation stack.
  */
 
-import { enableScreens } from 'react-native-screens';
-enableScreens();
-
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -19,11 +16,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, View } from 'react-native';
 
 import ArticleListScreen from './screens/ArticleListScreen';
 import HomeScreen from './screens/HomeScreen';
 import { Colors } from './theme/colors';
+
+// enableScreens() must NOT run on web — it calls native TurboModule code that
+// doesn't exist in react-native-web and crashes the bundle before React mounts.
+// Guard it to native platforms only.
+if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { enableScreens } = require('react-native-screens');
+  enableScreens();
+}
 
 const Stack = createNativeStackNavigator();
 
