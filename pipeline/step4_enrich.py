@@ -81,12 +81,14 @@ STRICT RULES you must follow:
    implications for tech hiring, startup funding, regulation, AI development, or
    competitive dynamics as relevant.
 5. Return ONLY valid JSON matching the schema below. No extra commentary.
+6. BREVITY IS MANDATORY: summary and why_it_matters must each be 3 to 4 sentences maximum.
+   Every sentence must earn its place. Cut anything redundant.
 
 OUTPUT JSON SCHEMA:
 {
   "event_heading":     "<string — the thesis in 10-15 words>",
-  "summary":           "<string — EXACTLY 4 to 8 sentences. What happened, facts only. You MUST write at least 4 full sentences.>",
-  "why_it_matters":    "<string — EXACTLY 4 to 8 sentences, Silicon Valley lens. You MUST write at least 4 full sentences.>",
+  "summary":           "<string — 3 to 4 sentences MAX. What happened, facts only. Be concise.>",
+  "why_it_matters":    "<string — 3 to 4 sentences MAX, Silicon Valley lens. Be concise.>",
   "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
   "timeline_context":  "<string — 1-2 sentences: when this started + what happens next>"
 }
@@ -248,6 +250,7 @@ def _make_mock_event(sc: ScoredCluster) -> EnrichedEvent:
     return EnrichedEvent(
         rank=sc.rank,
         trend_score=sc.trend_score,
+        trend_insight=sc.trend_insight,
         event_heading=f"[DRY RUN] {sc.cluster.headline_article.title[:60]}",
         summary=(
             "This is a dry-run summary. No LLM was called. "
@@ -326,6 +329,7 @@ def enrich_clusters(
             event = EnrichedEvent(
                 rank=sc.rank,
                 trend_score=sc.trend_score,
+                trend_insight=sc.trend_insight,
                 event_heading=raw["event_heading"],
                 summary=raw["summary"],
                 why_it_matters=raw["why_it_matters"],

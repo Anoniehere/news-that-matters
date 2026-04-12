@@ -20,6 +20,7 @@ export interface SectorImpact {
 export interface EnrichedEvent {
   rank: number;
   trend_score: number;
+  trend_insight: string;   // why the score is this number — computed from real metrics
   event_heading: string;
   summary: string;
   why_it_matters: string;

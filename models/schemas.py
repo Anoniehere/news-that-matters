@@ -64,6 +64,7 @@ class ScoredCluster(BaseModel):
     repetition_score: float         # 0.0–1.0  article-count signal
     social_score: float             # 0.0–1.0  pytrends OR feed-diversity fallback
     trend_score: float              # 0.70*rep + 0.30*social
+    trend_insight: str = ""         # human-readable breakdown of how the score was computed
     rank: Optional[int] = None      # assigned after sorting
     for_llm: bool = False           # True for top-5 clusters passed to M3
     search_term: str = ""           # keyword used for social signal query
@@ -87,9 +88,10 @@ class SectorImpact(BaseModel):
 class EnrichedEvent(BaseModel):
     rank: int                              # inherited from ScoredCluster.rank
     trend_score: float
+    trend_insight: str                     # why the score is this number (computed, not LLM)
     event_heading: str                     # ≤ 15 words — the thesis sentence
-    summary: str                           # 4–8 lines, facts only, source-grounded
-    why_it_matters: str                    # 4–8 lines, Silicon Valley persona
+    summary: str                           # max 4 sentences, facts only, source-grounded
+    why_it_matters: str                    # max 4 sentences, Silicon Valley persona
     sectors_impacted: list[SectorImpact]   # 1–5 items, sorted desc by confidence
     timeline_context: str                  # 1–2 sentences — when + what's next
     source_articles: list[Article]         # raw cluster articles, newest first (UI caps at 3)

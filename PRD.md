@@ -141,8 +141,8 @@ Step 4: LLM ENRICHMENT  (Groq, llama-3.3-70b-versatile, per event)
   → Pydantic schema validation; retry up to 2x on schema failure
   → Outputs per event:
      a) event_heading      : str  (≤ 15 words)
-     b) summary            : str  (4–8 lines)
-     c) why_it_matters     : str  (4–8 lines, Silicon Valley persona)
+     b) summary            : str  (3–4 sentences MAX, facts only, source-grounded)
+     c) why_it_matters     : str  (3–4 sentences MAX, Silicon Valley persona)
      d) sectors_impacted   : list[SectorImpact], 1–5 items, desc by confidence
         { sector_name, confidence_score: float 0–1, one_line_reason }
      e) timeline_context   : str  (1–2 lines)
@@ -735,7 +735,8 @@ Splash Screen:
 **Exit Criteria:**
 - [ ] All 5 events have valid `event_heading`, `summary`, `why_it_matters`, `sectors_impacted`, `timeline_context`
 - [ ] Pydantic validation passes without retry on ≥ 80% of runs
-- [ ] `summary` is 4–8 lines; `why_it_matters` is 4–8 lines
+- [ ] `summary` is max 4 sentences; `why_it_matters` is max 4 sentences
+- [ ] Each event has a `trend_insight` string explaining the score breakdown
 - [ ] `sectors_impacted` has 1–5 items, sorted by confidence desc
 - [ ] No financial advice language in any output (manual + automated check)
 - [ ] No invented facts verifiably absent from source articles (spot-check 3 events)

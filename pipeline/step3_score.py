@@ -207,6 +207,69 @@ def _social_score(
 
 
 # ---------------------------------------------------------------------------
+# Trend insight — human-readable explanation of how the score was computed
+# ---------------------------------------------------------------------------
+
+def _build_trend_insight(
+    cluster: Cluster,
+    rep_score: float,
+    soc_score: float,
+    trend_score: float,
+    signal_source: str,
+) -> str:
+    """
+    Build a plain-English sentence explaining exactly why this cluster got
+    its trend score. Grounded in real numbers — no LLM, no hallucination.
+
+    Example output:
+      "Score driven by strong cross-source repetition: 12 articles across
+       4 feeds (70% weight = 0.84). Google Trends added a moderate signal
+       of 0.41 (30% weight). Combined: 70% trend score."
+    """
+    unique_feeds  = len({a.feed_name for a in cluster.articles})
+    article_count = cluster.size
+    rep_pct       = int(round(rep_score * 100))
+    soc_pct       = int(round(soc_score * 100))
+    total_pct     = int(round(trend_score * 100))
+
+    # Repetition descriptor
+    if rep_pct >= 80:
+        rep_label = "very high"
+    elif rep_pct >= 55:
+        rep_label = "strong"
+    elif rep_pct >= 35:
+        rep_label = "moderate"
+    else:
+        rep_label = "low"
+
+    # Social descriptor
+    if soc_pct >= 70:
+        soc_label = "high"
+    elif soc_pct >= 40:
+        soc_label = "moderate"
+    elif soc_pct >= 15:
+        soc_label = "low"
+    else:
+        soc_label = "minimal"
+
+    source_label = (
+        "Google Trends" if signal_source == "pytrends"
+        else "cross-feed coverage"
+    )
+
+    feed_word  = "feed" if unique_feeds == 1 else "feeds"
+    art_word   = "article" if article_count == 1 else "articles"
+
+    return (
+        f"{total_pct}% trend score: {rep_label} repetition — "
+        f"{article_count} {art_word} across {unique_feeds} {feed_word} "
+        f"({rep_pct}% rep × 70% weight). "
+        f"{soc_label.capitalize()} {source_label} signal "
+        f"({soc_pct}% × 30% weight)."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main scoring function
 # ---------------------------------------------------------------------------
 
@@ -249,12 +312,14 @@ def score_clusters(cluster_result: ClusterResult) -> TrendResult:
             )
 
         trend = round(WEIGHT_REP * rep + WEIGHT_SOCIAL * soc, 4)
+        insight = _build_trend_insight(cluster, rep, soc, trend, src)
 
         scored.append(ScoredCluster(
             cluster=cluster,
             repetition_score=rep,
             social_score=soc,
             trend_score=trend,
+            trend_insight=insight,
             search_term=term,
             signal_source=src,
         ))
