@@ -705,6 +705,18 @@ function cleanTitle(t) {
   return t.replace(/ - [^-]+$/, '').replace(/ \| .+$/, '').trim();
 }
 
+/**
+ * Trim `text` so it contains the same number of complete sentences as `refText`.
+ * Splits on . ! ? followed by whitespace or end-of-string — never cuts mid-sentence.
+ */
+function trimToMatchSentences(text, refText) {
+  const toSentences = t =>
+    t.match(/[^.!?]*[.!?]+(?=\s|$)/g) || [t.trim()];
+  const targetCount = toSentences(refText).length;
+  const sentences   = toSentences(text);
+  return sentences.slice(0, targetCount).join(' ').trim();
+}
+
 function adaptBrief(apiData) {
   return apiData.brief.events.map(ev => {
     const text = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
@@ -713,7 +725,7 @@ function adaptBrief(apiData) {
       score:   ev.trend_score,
       heading: ev.event_heading,
       summary: ev.summary,
-      why:     ev.why_it_matters,
+      why:     trimToMatchSentences(ev.why_it_matters, ev.summary),
       tl:      buildTimeline(ev.source_articles),
       flags:   detectFlags(text),
       region:  detectRegion(text),
