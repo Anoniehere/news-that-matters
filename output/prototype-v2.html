@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>News That Matters — Prototype v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+    :root{
+      --accent:#7c3aed;--text:#111827;--sub:#4b5563;--muted:#9ca3af;
+      --border:rgba(0,0,0,.06);--nav-h:72px;
+    }
+    html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;color:var(--text)}
+    body{display:flex;align-items:center;justify-content:center;flex-direction:column;
+      background:
+        radial-gradient(ellipse 70% 55% at 10% 0%,#ddd6fe 0%,transparent 55%),
+        radial-gradient(ellipse 55% 45% at 90% 100%,#bfdbfe 0%,transparent 50%),#ede9fe}
+
+    /* ── Proto banner ── */
+    .proto-banner{position:fixed;top:0;left:0;right:0;z-index:9999;
+      background:linear-gradient(90deg,#f59e0b,#f97316);
+      color:#000;font-size:11px;font-weight:700;letter-spacing:.06em;
+      text-align:center;padding:7px 16px;text-transform:uppercase}
+
+    /* ── Phone shell ── */
+    .phone{position:relative;z-index:1;margin-top:30px;
+      width:100%;max-width:430px;height:calc(100dvh - 30px);
+      background:#f5f3ff;overflow:hidden;display:flex;flex-direction:column}
+    @media(min-width:500px){
+      .phone{height:min(900px,calc(96dvh - 30px));border-radius:44px;
+        box-shadow:0 0 0 1px rgba(0,0,0,.06),
+                   0 8px 32px rgba(109,40,217,.1),
+                   0 40px 80px rgba(0,0,0,.18)}}
+
+    /* ── Status bar ── */
+    .status-bar{display:flex;justify-content:space-between;align-items:center;
+      padding:14px 24px 0;flex-shrink:0;font-size:12px;font-weight:600;color:var(--text)}
+
+    /* ── Header ── */
+    .app-header{padding:10px 20px 6px;flex-shrink:0}
+
+    /* ── Progress dots ── */
+    .prog-dots{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0 4px}
+    .prog-dot{width:6px;height:6px;border-radius:99px;background:#d8b4fe;
+      transition:all .3s cubic-bezier(.4,0,.2,1)}
+    .prog-dot.active{width:20px;background:var(--accent)}
+
+    /* ── Card stack ── */
+    .card-stack{flex:1;position:relative;margin:0 14px 0;overflow:visible}
+
+    /* ── Swipe card ── */
+    .swipe-card{position:absolute;inset:0;
+      background:#fff;border-radius:24px;overflow:hidden;
+      display:flex;flex-direction:column;
+      box-shadow:0 1px 4px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.08),0 24px 48px rgba(0,0,0,.06);
+      transform-origin:center 110%;
+      will-change:transform,opacity;
+      user-select:none;-webkit-user-select:none}
+    .swipe-card.hero-card{
+      box-shadow:0 2px 8px rgba(124,58,237,.12),0 12px 32px rgba(0,0,0,.1),0 32px 64px rgba(0,0,0,.08)}
+    .swipe-card.is-behind{pointer-events:none}
+    .swipe-card.is-hidden{pointer-events:none;opacity:0!important;transform:scale(.88)!important}
+
+    /* ── Card strip ── */
+    .card-strip{height:5px;width:100%;flex-shrink:0}
+
+    /* ── Card body ── */
+    .card-body{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-height:0}
+
+    /* ── Rank watermark ── */
+    .rank-wm{position:absolute;top:-4px;right:12px;
+      font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
+      font-size:80px;line-height:1;color:rgba(0,0,0,.035);
+      user-select:none;pointer-events:none;letter-spacing:-.04em}
+
+    /* ── Hero badge ── */
+    .hero-badge{display:inline-flex;align-items:center;gap:5px;
+      padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;
+      letter-spacing:.07em;text-transform:uppercase;
+      background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(192,38,211,.08));
+      border:1px solid rgba(124,58,237,.22);color:var(--accent);margin-bottom:8px}
+
+    /* ── Flags FEAT 4 ── */
+    .flags-row{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-shrink:0}
+    .flags-cluster{display:flex;gap:2px;font-size:20px;line-height:1}
+    .region-badge{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+      padding:2px 8px;border-radius:99px;background:rgba(0,0,0,.05);
+      border:1px solid rgba(0,0,0,.07);color:var(--muted)}
+
+    /* ── Impact gauge FEAT 5 ── */
+    .gauge-wrap{margin-bottom:10px;flex-shrink:0}
+    .gauge-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+    .gauge-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .gauge-right{display:flex;align-items:center;gap:5px}
+    .gauge-level{font-size:11px;font-weight:700;letter-spacing:.04em}
+    .gauge-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800}
+    .gauge-track{height:7px;border-radius:99px;background:#e5e7eb;overflow:hidden}
+    .gauge-fill{height:100%;border-radius:99px;width:0%;transition:width 1.1s cubic-bezier(.4,0,.2,1)}
+
+    /* ── Heading ── */
+    .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:900;
+      line-height:1.25;letter-spacing:-.025em;color:#111827;margin-bottom:10px;flex-shrink:0}
+
+    /* ── Tabs FEAT 2 ── */
+    .tab-bar{display:flex;gap:3px;background:#f3f4f6;border-radius:12px;
+      padding:3px;margin-bottom:10px;flex-shrink:0}
+    .tab-btn{flex:1;padding:6px 4px;border-radius:9px;border:none;background:transparent;
+      font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s ease;
+      white-space:nowrap;touch-action:manipulation}
+    .tab-btn.active{background:#fff;color:var(--text);
+      box-shadow:0 1px 4px rgba(0,0,0,.1),0 0 0 .5px rgba(0,0,0,.06)}
+
+    /* ── Tab content — grid-stacked for zero layout shift FEAT 2 ── */
+    .tab-content{display:grid;grid-template-columns:1fr;flex:1;min-height:0;overflow:hidden}
+    .tab-pane{grid-row:1;grid-column:1;overflow-y:auto;overflow-x:hidden;
+      opacity:0;pointer-events:none;visibility:hidden;
+      transform:translateX(28px);
+      transition:opacity .26s ease,transform .26s cubic-bezier(.4,0,.2,1)}
+    .tab-pane::-webkit-scrollbar{display:none}
+    .tab-pane.active{opacity:1;pointer-events:auto;visibility:visible;transform:translateX(0);
+      transition:opacity .28s ease,transform .28s cubic-bezier(.4,0,.2,1)}
+
+    /* ── Body text ── */
+    .body-text{font-size:12.5px;color:var(--sub);line-height:1.65;margin-bottom:10px}
+    .matters-box{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.16);
+      border-radius:14px;padding:11px 13px;margin-bottom:10px}
+    .matters-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:5px}
+
+    /* ── Timeline FEAT 3 ── */
+    .timeline{display:flex;align-items:flex-start;flex-shrink:0}
+    .tl-node{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+    .tl-dot{width:9px;height:9px;border-radius:99px;position:relative;z-index:1;flex-shrink:0}
+    .tl-dot.past{background:var(--accent)}
+    .tl-dot.now{background:#111827}
+    .tl-dot.future{background:transparent;border:2px dashed #d1d5db}
+    .tl-line{position:absolute;top:4px;left:50%;right:-50%;height:1px;z-index:0}
+    .tl-line.solid{background:#e5e7eb}
+    .tl-line.dashed{background:repeating-linear-gradient(90deg,#d1d5db 0,#d1d5db 4px,transparent 4px,transparent 8px)}
+    .tl-node:last-child .tl-line{display:none}
+    .tl-label{font-size:9px;font-weight:600;color:var(--muted);margin-top:5px;text-align:center;line-height:1.3;max-width:72px}
+    .tl-label b{display:block;color:var(--sub);font-size:9px;margin-bottom:1px}
+    @keyframes nowPulse{0%,100%{box-shadow:0 0 0 3px rgba(124,58,237,.15)}50%{box-shadow:0 0 0 5px rgba(124,58,237,.05)}}
+    .tl-dot.now{animation:nowPulse 2.2s infinite}
+
+    /* ── Sector chips ── */
+    .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;flex-shrink:0}
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+      border-radius:99px;font-size:10.5px;font-weight:600;white-space:nowrap}
+
+    /* ── Card footer ── */
+    .card-footer{display:flex;align-items:center;justify-content:space-between;
+      padding-top:10px;margin-top:10px;border-top:1px solid #f3f4f6;flex-shrink:0}
+    .sources-btn{display:inline-flex;align-items:center;gap:5px;
+      padding:6px 14px;border-radius:10px;border:1px solid rgba(124,58,237,.2);
+      background:rgba(124,58,237,.06);font-size:11.5px;font-weight:600;
+      color:var(--accent);cursor:pointer;touch-action:manipulation;
+      transition:background .15s ease}
+    .sources-btn:active{background:rgba(124,58,237,.12)}
+
+    /* ── Swipe hint arrows ── */
+    .swipe-hint{position:absolute;top:50%;transform:translateY(-50%);
+      width:32px;height:32px;border-radius:99px;background:rgba(255,255,255,.8);
+      backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,.07);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.1);opacity:.5;pointer-events:none;
+      transition:opacity .3s ease}
+    .hint-left{left:-8px}.hint-right{right:-8px}
+
+    /* ── Bottom nav ── */
+    .bottom-nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav-h);
+      background:rgba(255,255,255,.92);backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);border-top:1px solid #e5e7eb;
+      display:flex;align-items:center;justify-content:space-around;
+      padding-bottom:env(safe-area-inset-bottom,0px)}
+    .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;
+      font-size:10px;font-weight:500;color:var(--muted);min-width:44px;min-height:44px;justify-content:center}
+    .nav-item.active{color:var(--accent)}
+    .nav-dot{width:4px;height:4px;border-radius:99px;background:var(--accent)}
+
+    /* ── Bottom sheet (fixed, outside phone) ── */
+    #sheet{position:fixed;inset:0;z-index:1000;pointer-events:none}
+    #sheet.open{pointer-events:auto}
+    #sh-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);
+      backdrop-filter:blur(4px);opacity:0;transition:opacity .3s ease;cursor:pointer}
+    #sheet.open #sh-backdrop{opacity:1}
+    #sh-panel{position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+      width:100%;max-width:430px;max-height:75vh;
+      background:#fff;border-radius:28px 28px 0 0;
+      border:1px solid rgba(0,0,0,.06);border-bottom:none;
+      display:flex;flex-direction:column;overflow:hidden;
+      transition:transform .35s cubic-bezier(.32,.72,0,1);
+      box-shadow:0 -8px 40px rgba(0,0,0,.12)}
+    #sheet.open #sh-panel{transform:translateX(-50%) translateY(0)}
+    .drag-handle{width:36px;height:4px;border-radius:99px;background:#e5e7eb;
+      margin:12px auto 0;flex-shrink:0}
+    #sh-head{padding:14px 20px 12px;border-bottom:1px solid #f3f4f6;flex-shrink:0}
+    #sh-scroll{overflow-y:auto;flex:1;padding-bottom:env(safe-area-inset-bottom,24px)}
+    #sh-scroll::-webkit-scrollbar{display:none}
+    .art-row{display:flex;gap:12px;padding:14px 20px;border-bottom:1px solid #f9fafb;
+      text-decoration:none;color:inherit;transition:background .12s;align-items:flex-start}
+    .art-row:active{background:#f9fafb}
+    .art-num{width:24px;height:24px;border-radius:8px;background:#f3f4f6;
+      display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+      color:var(--muted);flex-shrink:0;margin-top:1px}
+
+    /* ── Live dot ── */
+    @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}50%{box-shadow:0 0 0 5px rgba(124,58,237,0)}}
+    .live-dot{width:6px;height:6px;border-radius:99px;background:var(--accent);animation:glowPulse 2s infinite}
+
+    /* ── Feature tag ── */
+    .ftag{position:absolute;top:9px;left:9px;z-index:20;
+      background:rgba(245,158,11,.9);color:#000;font-size:9px;font-weight:800;
+      letter-spacing:.05em;padding:2px 7px;border-radius:99px;text-transform:uppercase;pointer-events:none}
+
+    /* ── Loading / Error states ── */
+    .loading-state,.error-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center;padding:20px}
+    .spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-state p,.error-state p{font-size:13px;color:var(--muted);font-weight:500}
+    .error-state h3{font-size:15px;font-weight:700;color:var(--text)}
+    .retry-btn{padding:8px 20px;border-radius:12px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.08);font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
+    /* ── Stale bar ── */
+    .stale-bar{background:rgba(245,158,11,.1);border-bottom:1px solid rgba(245,158,11,.25);padding:4px 16px;text-align:center;font-size:10px;font-weight:700;color:#92400e;letter-spacing:.04em;flex-shrink:0;text-transform:uppercase}
+  </style>
+</head>
+<body>
+
+<div class="proto-banner" id="proto-banner">🔬 Light Mode UI · Live Data · ← → Arrow Keys or Drag to Swipe</div>
+
+<div class="phone" id="phone">
+
+  <!-- Stale indicator -->
+  <div id="stale-bar" class="stale-bar" style="display:none">⏱ Data is <span id="stale-age"></span> old · refreshing hourly</div>
+
+  <!-- Status bar -->
+  <div class="status-bar" aria-hidden="true">
+    <span id="sb-time">9:41</span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="#374151"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" fill="#d1d5db"/></svg>
+      <svg width="22" height="12" viewBox="0 0 24 12" fill="#374151"><rect x="0" y="2" width="20" height="8" rx="2" fill="none" stroke="#374151" stroke-width="1.5"/><rect x="2" y="4" width="14" height="4" rx="1"/><rect x="21" y="4" width="3" height="4" rx="1" opacity=".4"/></svg>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+          <div class="live-dot"></div>
+          <span style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.09em;text-transform:uppercase">Live</span>
+        </div>
+        <h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.03em;line-height:1;color:var(--text)">News That Matters</h1>
+      </div>
+      <div id="card-counter" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:800;color:var(--muted)">1 / 5</div>
+    </div>
+    <!-- Progress dots -->
+    <div class="prog-dots" id="prog-dots"></div>
+  </header>
+
+  <!-- Card stack -->
+  <div class="card-stack" id="card-stack">
+    <div class="swipe-hint hint-left" id="hint-l">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+    </div>
+    <div class="swipe-hint hint-right" id="hint-r">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <div class="nav-item active">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <div class="nav-dot"></div>
+    </div>
+    <div class="nav-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Explore</span>
+    </div>
+    <div class="nav-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alerts</span>
+    </div>
+    <div class="nav-item">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span>Profile</span>
+    </div>
+  </nav>
+
+</div><!-- /phone -->
+
+<!-- Bottom sheet — fixed, outside phone to avoid overflow:hidden clipping -->
+<div id="sheet">
+  <div id="sh-backdrop" onclick="closeSheet()"></div>
+  <div id="sh-panel">
+    <div class="drag-handle"></div>
+    <div id="sh-head">
+      <p id="sh-label" style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px"></p>
+      <h2 id="sh-heading" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;line-height:1.3;letter-spacing:-.02em;color:var(--text)"></h2>
+    </div>
+    <div id="sh-scroll"><div id="sh-articles"></div>
+      <p style="text-align:center;font-size:11px;color:#d1d5db;padding:16px 20px;line-height:1.6">
+        News That Matters · For informational purposes only.<br>Not financial or investment advice.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Event data ───────────────────────────────────────────────────────────────
+let EVENTS=[
+  {rank:1,score:.70,
+   heading:"US-Iran Ceasefire Deal Weakens Dollar, Shifts Global Risk Appetite",
+   summary:"A ceasefire deal between the United States and Iran was reported in early April 2026, marking a significant de-escalation of geopolitical tensions. This immediately led to a substantial weakening of the U.S. Dollar — its worst weekly drop since January. Investors responded by rotating capital toward risk assets globally. The development signals a potential reconfiguration of geopolitical risk premiums in markets.",
+   why:"For Silicon Valley professionals, this de-escalation can significantly impact global capital flows. Easing tensions may encourage greater appetite for risk in emerging markets, opening new avenues for tech investment. The weakening dollar could affect purchasing power of US tech firms operating internationally and alter currency hedging strategies. Watch for shifts in venture capital appetite and cross-border M&A in coming weeks.",
+   tl:[{s:"past",d:"Apr 9",l:"Tensions peak"},{s:"now",d:"Apr 11",l:"Deal emerges"},{s:"future",d:"~Apr 18",l:"Stability watch"}],
+   flags:["🇺🇸","🇮🇷"],region:"Middle East",
+   sectors:[{n:"Finance",e:"💰"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
+   sources:[{t:"Dollar Plummets: Worst Weekly Drop Since January After US-Iran Deal",s:"CryptoRank",u:"#"},{t:"US Dollar Falls as Iran Ceasefire Hopes Spark Flight to Risk Assets",s:"CryptoRank",u:"#"},{t:"Australian Dollar Drops as US-Iran Ceasefire Hopes Evaporate",s:"CryptoRank",u:"#"}],
+   grads:["#7c3aed","#a855f7","#c026d3"]},
+  {rank:2,score:.5547,
+   heading:"US-Iran Ceasefire Talks Begin in Islamabad Amid Critical Stakes",
+   summary:"Historic ceasefire negotiations between the US and Iran commenced in Islamabad on April 11, 2026. The talks hinge on a final 10-point proposal addressing key disputes. Pakistan's role as host signals a shift toward multipolar diplomatic mediation. Both sides appear willing to engage, though significant sticking points remain.",
+   why:"Geopolitical stability in the Middle East directly influences global energy markets, impacting operational costs for data centers and tech manufacturing. A successful ceasefire could ease regional tensions and reduce supply chain disruption risk. Silicon Valley firms with exposure to Gulf markets or dependent on stable energy prices should monitor outcomes closely. Export control and sanctions policy may shift in response to any deal.",
+   tl:[{s:"past",d:"Apr 10",l:"Proposal tabled"},{s:"now",d:"Apr 11",l:"Talks begin"},{s:"future",d:"TBD",l:"Deal or breakdown"}],
+   flags:["🇺🇸","🇮🇷","🇵🇰"],region:"South Asia",
+   sectors:[{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"},{n:"Defence",e:"🛡️"},{n:"Finance",e:"💰"}],
+   sources:[{t:"Critical Ceasefire Hinges on Final 10-Point Proposal",s:"CryptoRank",u:"#"},{t:"Historic Islamabad Negotiations Begin April 11 with Critical Stakes",s:"CryptoRank",u:"#"}],
+   grads:["#0ea5e9","#06b6d4","#0d9488"]},
+  {rank:3,score:.28,
+   heading:"Middle East Geopolitical Conundrum and Shifting Power Dynamics",
+   summary:"The Middle East remains a complex arena of proxies and strategic levers, with no single actor holding decisive control. Long-standing rivalries continue to evolve as external powers reposition. The ceasefire window is creating unexpected diplomatic space. Analysts warn that proxy realignments could outlast any formal agreement.",
+   why:"Persistent instability creates ongoing supply chain risk for hardware manufacturing and energy-dependent data infrastructure. Increased regional instability could disrupt shipping lanes critical to tech component sourcing. Companies with manufacturing in Turkey, UAE, or Saudi Arabia face elevated operational risk. Monitor for secondary sanctions that could restrict tech exports to the region.",
+   tl:[{s:"past",d:"Historical",l:"Deep rivalry"},{s:"now",d:"Apr 2026",l:"Realignment"},{s:"future",d:"Q2 2026",l:"Alliance shifts"}],
+   flags:["🌍"],region:"Middle East",
+   sectors:[{n:"Defence",e:"🛡️"},{n:"Energy",e:"⚡"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"}],
+   sources:[{t:"Proxies and levers: The Middle East conundrum",s:"Times of India",u:"#"}],
+   grads:["#f43f5e","#ec4899","#a855f7"]},
+  {rank:4,score:.28,
+   heading:"India's West Asia Diplomacy Balances Gulf Ties and Iran Engagement",
+   summary:"India successfully navigated the War in West Asia by deepening Gulf relationships while keeping Iran diplomatic channels open. This balancing act reflects India's broader strategy of non-alignment in great-power competition. The approach has strengthened India's role as an emerging multipolar broker. Analysts view this as a model for middle-power diplomacy in a fragmented world.",
+   why:"India's diplomatic agility has direct implications for Silicon Valley's supply chain and talent pipeline. Stable India-Gulf relations protect critical semiconductor and mineral trade routes. India's growing clout makes it an increasingly important partner for US tech firms expanding into South Asia. A stable India-Iran channel reduces risk of tech export disruptions through the region.",
+   tl:[{s:"past",d:"2024",l:"War begins"},{s:"now",d:"Apr 2026",l:"India brokers"},{s:"future",d:"May 2026",l:"GCC tech summit"}],
+   flags:["🇮🇳","🇦🇪","🇮🇷"],region:"South Asia",
+   sectors:[{n:"Technology",e:"💻"},{n:"Manufacturing",e:"🏭"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
+   sources:[{t:"How India navigated the War in West Asia, deepening Gulf ties while keeping Iran channel open",s:"Punjab Kesari",u:"#"}],
+   grads:["#f59e0b","#f97316","#ef4444"]},
+  {rank:5,score:.28,
+   heading:"China Expands Tariff-Free Trade with 53 African Nations",
+   summary:"China announced full tariff-free measures for 53 African countries with diplomatic ties, effective April 12, 2026. The policy deepens China's economic footprint across the continent. It directly counters US and European infrastructure investment initiatives in Africa. Critical mineral supply chains — cobalt and lithium — are central to the move.",
+   why:"This reshapes the critical minerals supply chain that Silicon Valley's hardware ecosystem depends on. Chinese control of cobalt and lithium sourcing from the DRC and Zambia creates new pricing and access risks. Tech firms reliant on African critical minerals for batteries and chips should reassess supplier diversification strategies. Expect US counter-investment policy responses within 60 days.",
+   tl:[{s:"past",d:"Mar 2026",l:"Announced"},{s:"now",d:"Apr 12",l:"Effective"},{s:"future",d:"Q3 2026",l:"Integration"}],
+   flags:["🇨🇳","🌍"],region:"Africa",
+   sectors:[{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Manufacturing",e:"🏭"},{n:"Finance",e:"💰"}],
+   sources:[{t:"China implements full tariff-free measures on 53 African countries with diplomatic ties",s:"매일경제",u:"#"}],
+   grads:["#10b981","#06b6d4","#3b82f6"]}
+];
+
+// ── Design helpers ────────────────────────────────────────────────────────────
+const SC={
+  "Finance":     {bg:"#d1fae5",b:"#6ee7b7",t:"#065f46"},
+  "Technology":  {bg:"#ede9fe",b:"#c4b5fd",t:"#5b21b6"},
+  "Policy":      {bg:"#ede9fe",b:"#c4b5fd",t:"#5b21b6"},
+  "Energy":      {bg:"#fef3c7",b:"#fcd34d",t:"#92400e"},
+  "Defence":     {bg:"#fee2e2",b:"#fca5a5",t:"#991b1b"},
+  "Manufacturing":{bg:"#ccfbf1",b:"#99f6e4",t:"#134e4a"},
+};
+const sc=n=>SC[n]||{bg:"#f3f4f6",b:"#e5e7eb",t:"#6b7280"};
+const gc=s=>{const v=s*10;return v>=6.5?{c:"#ef4444",l:"CRITICAL"}:v>=4.5?{c:"#f59e0b",l:"URGENT"}:v>=2.5?{c:"#3b82f6",l:"BUILDING"}:{c:"#10b981",l:"EMERGING"};};
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+// ── Build card HTML ───────────────────────────────────────────────────────────
+function buildCard(ev,idx){
+  const g=gc(ev.score),pct=Math.round(ev.score*100),val=(ev.score*10).toFixed(1);
+  const id=`c${ev.rank}`;
+  const chips=ev.sectors.map(s=>{const c=sc(s.n);return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;}).join("");
+  const tl=ev.tl.map((n,i)=>{
+    const last=i===ev.tl.length-1;
+    return`<div class="tl-node"><div style="position:relative;width:100%;display:flex;justify-content:center"><div class="tl-dot ${n.s}"></div>${!last?`<div class="tl-line ${n.s==="past"?"solid":"dashed"}"></div>`:""}</div><div class="tl-label"><b>${esc(n.d)}</b>${esc(n.l)}</div></div>`;
+  }).join("");
+
+  const isHero=ev.rank===1;
+  return`<div class="swipe-card${isHero?" hero-card":""}" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
+    ${idx===0?`<div class="ftag">Swipe left →</div>`:""}
+    <div class="card-strip" style="background:linear-gradient(90deg,${ev.grads.join(",")})"></div>
+    <div class="rank-wm">${String(ev.rank).padStart(2,"0")}</div>
+    <div class="card-body">
+      ${isHero?`<div class="hero-badge">⚡ Signal of the day</div>`:""}
+      <div class="flags-row">
+        <div class="flags-cluster">${ev.flags.map(f=>`<span>${f}</span>`).join("")}</div>
+        <span class="region-badge">${esc(ev.region)}</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-meta">
+          <span class="gauge-lbl">Impact Level</span>
+          <div class="gauge-right">
+            <span class="gauge-level" style="color:${g.c}">${g.l}</span>
+            <span class="gauge-val" style="color:${g.c}">${val}<span style="font-size:9px;opacity:.5;font-family:Inter,sans-serif">/10</span></span>
+          </div>
+        </div>
+        <div class="gauge-track"><div class="gauge-fill" data-pct="${pct}" style="background:linear-gradient(90deg,${g.c}88,${g.c})"></div></div>
+      </div>
+      <h2 class="card-heading">${esc(ev.heading)}</h2>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('${id}','happened',this,0)">What Happened</button>
+        <button class="tab-btn"        onclick="switchTab('${id}','matters', this,1)">Why It Matters →</button>
+      </div>
+      <div class="tab-content" id="${id}-wrap">
+        <div id="${id}-happened" class="tab-pane active">
+          <p class="body-text">${esc(ev.summary)}</p>
+          <div class="timeline">${tl}</div>
+        </div>
+        <div id="${id}-matters" class="tab-pane">
+          <div class="matters-box">
+            <p class="matters-lbl">Why it matters to you</p>
+            <p class="body-text" style="color:#374151;margin-bottom:0">${esc(ev.why)}</p>
+          </div>
+          <div class="timeline">${tl}</div>
+        </div>
+      </div>
+      <div class="chips-row">${chips}</div>
+      <div class="card-footer">
+        <span style="font-size:11px;color:var(--muted)">Rank #${ev.rank} · ${Math.round(ev.score*100)}% trend</span>
+        <button class="sources-btn" onclick="openSheet(${idx})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          ${ev.sources.length} Source${ev.sources.length!==1?"s":""}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Tab switch with directional animation ─────────────────────────────────────
+const _tabDir={};
+function switchTab(cid,tab,btn,idx){
+  const prev=_tabDir[cid]??0,dir=idx>prev?1:-1;
+  _tabDir[cid]=idx;
+  const wrap=document.getElementById(`${cid}-wrap`);
+  const incoming=document.getElementById(`${cid}-${tab}`);
+  const outgoing=wrap.querySelector(".tab-pane.active");
+  if(!outgoing||outgoing===incoming)return;
+  incoming.style.cssText="transform:translateX("+(dir*30)+"px);opacity:0;visibility:visible;pointer-events:none;transition:none";
+  incoming.getBoundingClientRect();
+  outgoing.style.cssText="transition:opacity .22s ease,transform .22s cubic-bezier(.4,0,.2,1);transform:translateX("+(-dir*30)+"px);opacity:0";
+  incoming.style.cssText="transition:opacity .28s ease,transform .28s cubic-bezier(.4,0,.2,1);transform:translateX(0);opacity:1;visibility:visible;pointer-events:auto";
+  setTimeout(()=>{
+    outgoing.classList.remove("active");outgoing.style.cssText="";
+    incoming.classList.add("active");incoming.style.cssText="";
+  },280);
+  btn.closest(".tab-bar").querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+// ── Swipe engine ─────────────────────────────────────────────────────────────
+let curr=0,dragX=0,dragging=false,swiping=false,startX=0,startY=0,startTime=0;
+const THRESHOLD=85,cards=[];
+
+function getCardEl(i){return document.getElementById(`card-${i}`);}
+
+function positionAll(delta=0){
+  const progress=Math.min(1,Math.abs(delta)/THRESHOLD);
+  const goingLeft=delta<0;
+  EVENTS.forEach((_,i)=>{
+    const el=getCardEl(i);if(!el)return;
+    if(i===curr){
+      const rot=delta/22;
+      el.style.transition="none";
+      el.style.transform=`translateX(${delta}px) rotate(${rot}deg)`;
+      el.style.opacity="1";el.style.zIndex=EVENTS.length;
+    } else {
+      const behindIdx=goingLeft?curr+1:curr-1;
+      if(i===behindIdx&&i>=0&&i<EVENTS.length){
+        const s=0.93+0.07*progress,ty=10*(1-progress);
+        el.style.transition="none";
+        el.style.transform=`scale(${s}) translateY(${ty}px)`;
+        el.style.opacity=String(.75+.25*progress);
+        el.style.zIndex=EVENTS.length-1;
+        el.classList.remove("is-hidden");
+      } else if(i===curr+1){
+        el.style.transform="scale(0.93) translateY(10px)";
+        el.style.opacity=".75";el.style.zIndex=EVENTS.length-2;
+        el.classList.remove("is-hidden");
+      } else {
+        el.style.opacity="0";el.style.zIndex="0";
+        el.classList.add("is-hidden");
+      }
+    }
+  });
+}
+
+function snapBack(){
+  const el=getCardEl(curr);
+  el.style.transition="transform .4s cubic-bezier(.175,.885,.32,1.275),opacity .3s ease";
+  el.style.transform="translateX(0) rotate(0deg)";
+  positionAll(0);
+}
+
+function flyOff(dir){
+  const el=getCardEl(curr);
+  const tx=dir*520,rot=dir*18;
+  el.style.transition="transform .36s cubic-bezier(.4,0,.2,1),opacity .3s ease";
+  el.style.transform=`translateX(${tx}px) rotate(${rot}deg)`;
+  el.style.opacity="0";
+  const next=curr-dir; // dir: -1=swipe left→next, +1=swipe right→prev
+  if(next<0||next>=EVENTS.length){snapBack();return;}
+  curr=next;
+  setTimeout(()=>{
+    updateUI();
+    positionAll(0);
+    animateGauges();
+  },320);
+}
+
+function onDown(e){
+  if(e.target.closest("button")||e.target.closest("a"))return;
+  dragging=true;swiping=false;dragX=0;
+  startX=e.touches?.[0].clientX??e.clientX;
+  startY=e.touches?.[0].clientY??e.clientY;
+  startTime=Date.now();
+}
+function onMove(e){
+  if(!dragging)return;
+  const x=e.touches?.[0].clientX??e.clientX;
+  const y=e.touches?.[0].clientY??e.clientY;
+  const dx=x-startX,dy=y-startY;
+  if(!swiping){
+    if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
+    if(Math.abs(dx)>Math.abs(dy)){swiping=true;}
+    else{dragging=false;return;}
+  }
+  if(swiping){e.preventDefault();dragX=dx;positionAll(dragX);}
+}
+function onUp(){
+  if(!dragging){return;}
+  dragging=false;swiping=false;
+  const vel=Math.abs(dragX)/(Date.now()-startTime);
+  if(Math.abs(dragX)>THRESHOLD||vel>.55){
+    flyOff(dragX>0?1:-1);
+  } else {snapBack();}
+  dragX=0;
+}
+
+// ── UI updates ────────────────────────────────────────────────────────────────
+function updateUI(){
+  document.getElementById("card-counter").textContent=`${curr+1} / ${EVENTS.length}`;
+  document.querySelectorAll(".prog-dot").forEach((d,i)=>d.classList.toggle("active",i===curr));
+  // Hint visibility
+  document.getElementById("hint-l").style.opacity=curr>0?.45:0;
+  document.getElementById("hint-r").style.opacity=curr<EVENTS.length-1?.45:0;
+}
+
+function animateGauges(){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll(".gauge-fill").forEach(el=>{el.style.width=el.dataset.pct+"%";});
+  }));
+}
+
+// ── Source sheet ──────────────────────────────────────────────────────────────
+function openSheet(idx){
+  const ev=EVENTS[idx];
+  document.getElementById("sh-label").textContent=`#${ev.rank} trending · ${ev.region}`;
+  document.getElementById("sh-heading").textContent=ev.heading;
+  document.getElementById("sh-articles").innerHTML=ev.sources.map((a,i)=>`
+    <a href="${esc(a.u)}" target="_blank" rel="noopener" class="art-row">
+      <div class="art-num">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:13px;font-weight:500;color:#111827;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(a.t)}</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:500">${esc(a.s)}</p>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ev.grads[0]}" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><path d="M7 7h10v10M7 17 17 7"/></svg>
+    </a>`).join("");
+  document.getElementById("sheet").classList.add("open");
+}
+function closeSheet(){document.getElementById("sheet").classList.remove("open");}
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){closeSheet();return;}
+  if(document.getElementById("sheet").classList.contains("open"))return;
+  if(e.key==="ArrowLeft"&&curr<EVENTS.length-1){flyOff(-1);}
+  if(e.key==="ArrowRight"&&curr>0){flyOff(1);}
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+function init(){
+  // Build progress dots
+  document.getElementById("prog-dots").innerHTML=
+    EVENTS.map((_,i)=>`<div class="prog-dot${i===0?" active":""}"></div>`).join("");
+
+  // Build all cards
+  const stack=document.getElementById("card-stack");
+  const existing=[...stack.querySelectorAll(".swipe-card")];
+  existing.forEach(e=>e.remove());
+  // Insert in reverse so card 0 is on top in DOM and z-index
+  [...EVENTS].reverse().forEach((ev,ri)=>{
+    const i=EVENTS.length-1-ri;
+    stack.insertAdjacentHTML("beforeend",buildCard(ev,i));
+  });
+
+  positionAll(0);
+  animateGauges();
+  updateUI();
+
+  // Attach swipe listeners to stack
+  stack.addEventListener("mousedown",onDown);
+  stack.addEventListener("touchstart",onDown,{passive:true});
+  window.addEventListener("mousemove",onMove);
+  window.addEventListener("touchmove",onMove,{passive:false});
+  window.addEventListener("mouseup",onUp);
+  window.addEventListener("touchend",onUp);
+
+  // Clock
+  const tick=()=>{const n=new Date();document.getElementById("sb-time").textContent=n.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}).replace(/ (AM|PM)/,"");};
+  tick();setInterval(tick,30000);
+}
+
+// ── Live data wiring ────────────────────────────────────────────────────────
+const API = 'http://127.0.0.1:8001';
+
+const RANK_GRADS = [
+  ['#7c3aed','#a855f7','#c026d3'],
+  ['#0ea5e9','#06b6d4','#0d9488'],
+  ['#f43f5e','#ec4899','#a855f7'],
+  ['#f59e0b','#f97316','#ef4444'],
+  ['#10b981','#06b6d4','#3b82f6'],
+];
+
+const SECTOR_EMOJI_MAP = {
+  'Finance':'💰','Technology':'💻','Policy & Regulation':'⚖️','Policy':'⚖️',
+  'Defence & Security':'🛡️','Defence':'🛡️','Energy':'⚡','Manufacturing':'🏭',
+  'Healthcare':'🏥','Trade':'🤝','Geopolitics':'🌐','Media':'📺','Transport':'🚢',
+};
+const sectorEmoji = n => SECTOR_EMOJI_MAP[n] || '📊';
+
+const COUNTRY_FLAGS = [
+  [['United States','US-','U.S.','American','Pentagon','Congress','Washington'],'🇺🇸'],
+  [['Iran','Iranian'],'🇮🇷'],
+  [['China','Chinese','Beijing'],'🇨🇳'],
+  [['Russia','Russian','Moscow'],'🇷🇺'],
+  [['Ukraine','Ukrainian'],'🇺🇦'],
+  [['Pakistan','Pakistani'],'🇵🇰'],
+  [['India','Indian','New Delhi'],'🇮🇳'],
+  [['Israel','Israeli'],'🇮🇱'],
+  [['Saudi','Saudi Arabia'],'🇸🇦'],
+  [['UAE','Emirates'],'🇦🇪'],
+  [['Japan','Japanese'],'🇯🇵'],
+  [['Taiwan','Taiwanese'],'🇹🇼'],
+  [['North Korea'],'🇰🇵'],
+  [['South Korea','Korea'],'🇰🇷'],
+  [['Germany','German'],'🇩🇪'],
+  [['France','French'],'🇫🇷'],
+  [['UK','Britain','British'],'🇬🇧'],
+  [['Europe','European','NATO'],'🇪🇺'],
+  [['Africa','African'],'🌍'],
+];
+
+const REGION_MAP = [
+  [['Iran','Iraq','Syria','Israel','Saudi','Yemen','Lebanon','Gaza','Hormuz','Middle East'],'Middle East'],
+  [['China','Taiwan','Japan','Korea','Asia-Pacific','Indo-Pacific','Beijing','Hong Kong'],'Asia-Pacific'],
+  [['Russia','Ukraine','NATO','Europe','European','Germany','France','UK'],'Europe'],
+  [['Africa','African','Congo','Nigeria','Kenya','Ethiopia','Zambia','DRC'],'Africa'],
+  [['Pakistan','India','South Asia','Bangladesh','Delhi'],'South Asia'],
+  [['Pentagon','Congress','Federal Reserve','US budget','Wall Street'],'United States'],
+  [['Latin America','Mexico','Brazil','Colombia','Venezuela'],'Latin America'],
+];
+
+function detectFlags(text) {
+  const seen = new Set(), flags = [];
+  for (const [kws, flag] of COUNTRY_FLAGS) {
+    if (kws.some(k => text.includes(k)) && !seen.has(flag)) {
+      seen.add(flag); flags.push(flag);
+    }
+  }
+  return flags.length ? flags.slice(0,4) : ['🌐'];
+}
+
+function detectRegion(text) {
+  for (const [kws, region] of REGION_MAP) {
+    if (kws.some(k => text.includes(k))) return region;
+  }
+  return 'Global';
+}
+
+function buildTimeline(sourceArticles) {
+  if (!sourceArticles || sourceArticles.length === 0)
+    return [{s:'now',d:'Today',l:'Developing'}];
+  const sorted = [...sourceArticles].sort((a,b) => new Date(a.published_at)-new Date(b.published_at));
+  const fmt = iso => new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const tl = [];
+  if (sorted.length >= 2) tl.push({s:'past',d:fmt(sorted[0].published_at),l:'Emerged'});
+  tl.push({s:'now',d:fmt(sorted[sorted.length-1].published_at),l:'Latest'});
+  tl.push({s:'future',d:'Watch',l:'Developing'});
+  return tl;
+}
+
+function cleanTitle(t) {
+  return t.replace(/ - [^-]+$/, '').replace(/ \| .+$/, '').trim();
+}
+
+function adaptBrief(apiData) {
+  return apiData.brief.events.map(ev => {
+    const text = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
+    return {
+      rank:    ev.rank,
+      score:   ev.trend_score,
+      heading: ev.event_heading,
+      summary: ev.summary,
+      why:     ev.why_it_matters,
+      tl:      buildTimeline(ev.source_articles),
+      flags:   detectFlags(text),
+      region:  detectRegion(text),
+      sectors: ev.sectors_impacted.slice(0,4).map(s => ({n:s.name, e:sectorEmoji(s.name)})),
+      sources: ev.source_articles.map(a => ({t:cleanTitle(a.title), s:a.source_name, u:a.url})),
+      grads:   RANK_GRADS[(ev.rank-1) % RANK_GRADS.length],
+    };
+  });
+}
+
+function showLoading() {
+  document.getElementById('card-stack').innerHTML =
+    `<div class="loading-state"><div class="spinner"></div><p>Loading live brief…</p></div>`;
+  document.getElementById('prog-dots').innerHTML = '';
+}
+
+function showError(msg) {
+  document.getElementById('card-stack').innerHTML =
+    `<div class="error-state">
+      <h3>Couldn't load brief</h3>
+      <p>${esc(msg)}</p>
+      <button class="retry-btn" onclick="fetchAndInit()">↺ Retry</button>
+    </div>`;
+}
+
+async function fetchAndInit() {
+  showLoading();
+  try {
+    const res = await fetch(API + '/brief');
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    const data = await res.json();
+    EVENTS = adaptBrief(data);
+    const meta = data.meta || {};
+    if (meta.is_stale) {
+      const mins = Math.round(meta.age_minutes || 0);
+      const label = mins >= 90 ? `${Math.round(mins/60)}h` : `${mins}m`;
+      const bar = document.getElementById('stale-bar');
+      const age = document.getElementById('stale-age');
+      if (bar && age) { age.textContent = label; bar.style.display = 'block'; }
+    }
+    init();
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', fetchAndInit);
+</script>
+</body>
+</html>
