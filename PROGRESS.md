@@ -260,20 +260,35 @@ M6 next steps:
 ## Next Session: Start Here
 
 ```
-► START M7 — Deploy + QA. Day 9 of 10.
+► ACTIVE:  M7 — Deploy + QA. Day 9 of 10.
 
-Context:
-  M6 done. All screens built. Full mobile app works end-to-end in Expo web.
-  API is live on localhost:8001. Next: production deploy + QA pass.
+Context (as of 2026-04-14):
+  M6 done. All mobile screens built. Full app works end-to-end in Expo web.
+  API live on localhost:8001 (app.main:app, port 8001).
+  Scoring overhauled — persona weights live, 12 feeds, partial brief safety net.
+  PRD v1.3 written with consolidated intelligence logic in §5.1.
 
-Tasks:
-  1. Switch API_BASE in services/api.ts to production URL
-  2. 50-run LLM red-team (hallucination + financial advice check)
-  3. WCAG 2.2 AA contrast verification (all text + UI components)
-  4. E2E flow: home loads → tap card → article list → tap article → browser
-  5. Deploy FastAPI to Render/Railway/Fly.io (HTTPS, always-on, env vars)
+Pipeline current state:
+  - step1_fetch.py  : 12 feeds, _GEO_KEYWORDS expanded
+  - step2_cluster.py: MiniLM-L6-v2 + TF-IDF fallback, DBSCAN
+  - step3_score.py  : rep 70% + feed_diversity 30%, TOTAL_FEEDS=12
+  - step4_enrich.py : Gemini Flash primary / Groq fallback, PERSONA_WEIGHTS,
+                      per-cluster try/except safety net, persona rescore
+  - app/main.py     : FastAPI, SQLite cache, APScheduler 60min
+  - prototype-v2.html: light mode swipe card UI — NOT yet merged into web/index.html
+
+M7 Tasks:
+  1. Switch API_BASE in mobile/services/api.ts to production URL
+  2. Deploy FastAPI to Render/Railway/Fly.io (HTTPS, always-on, env vars)
+  3. 50-run LLM red-team (hallucination + financial advice check)
+  4. WCAG 2.2 AA contrast verification (all text + UI components)
+  5. E2E flow: home loads → tap card → article list → tap article → browser
   6. Expo Go QR code for physical device testing
   7. is_stale banner appears if pipeline down > 2 hours
+
+Optional (V1.1 scope):
+  - Merge prototype-v2.html light-mode design into web/index.html
+  - Re-sort brief events by final_signal_score (currently ordered by step3 rank)
 
 Done when:
   - Production API URL works from real device (not localhost)
@@ -304,6 +319,11 @@ Done when:
 | 2026-04-08 | **SkeletonCard → ActivityIndicator for MVP** | ADR-011 | M5 simpler; polish in V1.1 |
 | 2026-04-09 | **TF-IDF fallback for embeddings (HF DNS blocked on Walmart net)** | ADR-013 | Auto-fallback; prod uses neural |
 | 2026-04-09 | **pytrends 400 + external APIs blocked; feed_diversity fallback** | ADR-014 | Offline, deterministic, works on Walmart net |
+| 2026-04-14 | **LLM provider switched: Gemini Flash primary, Groq fallback** | ADR-015 | `LLM_PROVIDER` env var toggles; 3 retries per cluster |
+| 2026-04-14 | **pytrends 30% slot replaced by persona relevance scoring** | ADR-016 | `PERSONA_WEIGHTS` dict in `step4_enrich.py`; scores now ~0.91–0.97 range instead of 2-band collapse |
+| 2026-04-14 | **Google News feeds expanded 5 → 12** | ADR-017 | 7 SV-persona feeds added; `TOTAL_FEEDS=12`; feed_diversity denominator updated |
+| 2026-04-14 | **Partial brief safety net** | ADR-018 | Per-cluster try/except in step4; partial brief written on LLM failure instead of crash |
+| 2026-04-14 | **PRD v1.3: §5.1 rewritten as consolidated intelligence logic** | — | Single source of truth for pipeline logic; §4 and §11 updated to match reality |
 
 ---
 
@@ -313,4 +333,4 @@ Done when:
 
 ---
 
-*Last updated: 2026-04-08 | Next update due: End of first coding session*
+*Last updated: 2026-04-14 | Next update due: End of M7 session*

@@ -1,8 +1,13 @@
 # 📰 News That Matters — Product Requirements Document
-**Version:** 1.1 | **Status:** Implementation Ready | **Date:** 2026-04-08
+**Version:** 1.3 | **Status:** In Development | **Date:** 2026-04-14
 **Author:** PM Session w/ Code Puppy 🐶
-**Changelog v1.1:** Milestone-based delivery plan; updated home screen UX (full event cards);
-new article timeline screen; added Section 8 — UX & Frontend Design Specs.
+
+| Version | Date | Summary |
+|---------|------|---------|
+| 1.0 | 2026-04-07 | Initial PRD |
+| 1.1 | 2026-04-08 | Milestone delivery plan; full event cards on home screen; §8 UX specs |
+| 1.2 | 2026-04-10 | Scope cuts: pytrends → feed_diversity fallback (ADR-014); Reddit dropped (ADR-010); TF-IDF fallback for embeddings (ADR-013) |
+| 1.3 | 2026-04-14 | **Scoring overhaul shipped:** pytrends fully replaced by persona relevance scoring; Google News feeds expanded 5 → 12; §5.1 rewritten as consolidated intelligence logic; LLM provider updated (Gemini Flash primary, Groq fallback); partial-brief safety net added |
 
 ---
 
@@ -73,12 +78,19 @@ There is no product that gives you **trend signal + causal depth + sector impact
 |----------------|------------|
 | Top 3 vs Top 5 | ✅ **Show top 5** to users. Pipeline computes top 7 as internal buffer. |
 | Real-time vs <10s | ✅ **Background cache** refreshes every hour. User sees cached results in <1s. "Last updated X min ago" shown. Pull-to-refresh triggers async re-run. |
-| Social signals (X/LinkedIn) | ✅ **Google Trends** as proxy for trend velocity. Reddit via official API (free). X and LinkedIn deferred to V2. |
-| Persona system | ✅ **Hardcoded Silicon Valley archetype** for MVP. Preset personas in V2. |
+| Social signals (X/LinkedIn) | ❌ Dropped. X API costs $100+/mo. LinkedIn has no public search API. |
+| Reddit signals | ❌ Dropped for MVP (ADR-010). Too much integration time in a 2-week sprint. V1.1 backlog. |
+| Google Trends / pytrends | ❌ Dropped (ADR-014). Blocked on Walmart network; externally it 400s under load. Replaced by persona relevance scoring (see §5.1 Step 5). |
+| News feed count | ✅ **12 Google News RSS feeds** (5 core geopolitics + 7 SV-persona feeds). Up from original 5. |
+| Trend scoring formula | ✅ `0.70 × repetition_score + 0.30 × persona_score`. Persona score uses sector weights calibrated to the SV professional archetype. Replaces the dead pytrends 30% slot. |
+| Persona system | ✅ **Hardcoded Silicon Valley archetype** for MVP. Tunable via `PERSONA_WEIGHTS` dict in `step4_enrich.py`. Preset personas in V2. |
 | Authentication | ✅ **No auth in MVP.** Fully anonymous. No PII collected. |
-| LLM Provider | ✅ **Groq API** (free tier) with `llama-3.3-70b-versatile`. Fallback: Google Gemini Flash free tier. |
+| LLM Provider | ✅ **Google Gemini Flash** (primary, free tier). **Groq llama-3.3-70b-versatile** as fallback. Provider toggled via `LLM_PROVIDER` env var. |
+| LLM failure handling | ✅ **Partial brief over no brief.** If one cluster exhausts retries, it is skipped and logged. The brief is written with whatever events succeeded. |
+| Embeddings | ✅ `all-MiniLM-L6-v2` (sentence-transformers, local). **TF-IDF fallback** auto-activates if HuggingFace DNS is blocked (ADR-013). |
 | Home screen UX | ✅ **Full event content on card** (heading + summary + why it matters + sector tags). |
 | Click-through UX | ✅ **Tap card → article list screen** showing source articles sorted by recency (newest first), grouped by date. |
+| Light mode | ✅ **`prototype-v2.html`** built as light-mode swipe-card prototype. Not yet merged into `web/index.html` (dark OLED). V1.1 candidate. |
 
 ---
 
@@ -86,72 +98,232 @@ There is no product that gives you **trend signal + causal depth + sector impact
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  MOBILE APP (React Native)               │
-│  Home: 5 event cards (full content visible on card)     │
-│  Article List: sorted by recency, grouped by date       │
-└──────────────────────┬──────────────────────────────────┘
+│                  MOBILE APP (React Native / Expo)          │
+│  Home: 5 event cards (full content visible on card)      │
+│  Article List: sorted by recency, grouped by date        │
+└──────────────────────┼─────────────────────────────────┘
                        │ REST — GET /brief
-┌──────────────────────▼──────────────────────────────────┐
-│                  FASTAPI BACKEND                         │
-│   Serves latest cached brief. 99% of calls hit cache.  │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────▼─────────────────────────────────┐
+│                  FASTAPI BACKEND  (app/main.py)            │
+│   Serves latest cached brief. 99% of calls hit cache.   │
+└──────────────────────┼─────────────────────────────────┘
                        │ reads from
-┌──────────────────────▼──────────────────────────────────┐
-│              SQLITE CACHE  (TTL = 1 hour)                │
+┌──────────────────────▼─────────────────────────────────┐
+│              SQLITE CACHE  (TTL = 1 hour)                 │
 │   Stores: top-5 events + articles + last_updated_at      │
-└──────────────────────┬──────────────────────────────────┘
-                       │ written by
-┌──────────────────────▼──────────────────────────────────┐
-│           BACKGROUND PIPELINE  (APScheduler)             │
-│   Runs every 60 min. 5 sequential steps (see §5.1).     │
+└──────────────────────┼─────────────────────────────────┘
+                       │ written by (every 60 min)
+┌──────────────────────▼─────────────────────────────────┐
+│        BACKGROUND PIPELINE  (APScheduler, max 1 instance) │
+│  Steps 1–5 as described in §5.1. Runtime ≤ 5 min.        │
+│  12 RSS feeds → cluster → score → LLM → persona rescore  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 5.1 Background Pipeline — Step by Step
+### 5.1 Intelligence Pipeline — Consolidated Logic
+
+> **How we go from the open internet to a ranked top-5 brief, step by step.**
+> This section is the single source of truth for pipeline logic.
+> Code lives in `pipeline/step{1–4}_*.py`; tune constants there, not here.
+
+---
+
+#### Step 1 — FETCH (`pipeline/step1_fetch.py`)
+*Goal: pull every relevant article published in the last 4 days.*
+
+**Source:** 12 Google News RSS feeds, queried via `feedparser`. No auth required.
+
+| Feed | Coverage focus |
+|------|---------------|
+| US Top Stories | Broad domestic signal |
+| Technology | General tech news |
+| US Politics | Policy, executive branch |
+| Economy | Markets, trade, macro |
+| AI & Science | Research, AI policy |
+| AI & Chip Export Controls | Semiconductor geopolitics (new) |
+| Dollar & Global Finance | FX, central banks, rates (new) |
+| Energy & Critical Minerals | Lithium, cobalt, oil, OPEC (new) |
+| India & Gulf Relations | Emerging market diplomacy (new) |
+| Cyber & Espionage | State-sponsored attacks, hacks (new) |
+| Africa & Global South | Belt & Road, development finance (new) |
+| Tech Regulation & Antitrust | FTC, EU, data sovereignty (new) |
+
+**Filtering (applied to every article before it leaves Step 1):**
+1. `published_at` ≤ 4 days old (stale news gets dropped)
+2. Language: English only (detected via charset/header)
+3. `body_snippet` ≥ 100 characters (stub articles filtered out)
+4. Geopolitical keyword match: article title or snippet must contain at least one term from `_GEO_KEYWORDS` — a ~100-term frozenset covering diplomacy, conflict, trade, tech policy, critical minerals, and cyber threat vocabulary
+
+**Output:** `output/raw_articles.json` — list of `{ title, url, published_at, source, body_snippet, feed_name }`
+
+---
+
+#### Step 2 — CLUSTER (`pipeline/step2_cluster.py`)
+*Goal: group articles that are about the same event into one cluster.*
+
+**Embedding:**
+- Primary: `all-MiniLM-L6-v2` (sentence-transformers, runs locally, zero cost, ~80ms/article)
+- Fallback: TF-IDF vectorizer (activates automatically if HuggingFace DNS is unreachable — e.g. Walmart network; ADR-013)
+- Each article is embedded as: `title + " " + first 2 paragraphs of body_snippet`
+
+**Clustering algorithm:** DBSCAN
+- `eps = 0.3` (cosine distance threshold — articles within 30% of each other are co-clustered)
+- `min_samples = 2` (a cluster requires ≥ 2 articles; singletons are not promoted to events)
+- Singletons (noise points in DBSCAN) are retained as low-priority candidates but flagged separately
+- Each cluster elects a **headline article**: the article with the highest `body_snippet` length (most content-rich)
+
+**Output:** `output/clusters.json` — list of clusters, each containing: `{ cluster_id, articles[], headline_article, feed_names[] }`
+
+---
+
+#### Step 3 — SCORE (`pipeline/step3_score.py`)
+*Goal: rank clusters by objective signal strength. Higher score = more newsworthy by volume.*
+
+**Scoring formula (pre-LLM):**
 
 ```
-Step 1: FETCH
-  → Google RSS feeds (last 4 days, US-geofenced topics)
-  → Feeds: Google News US, Tech, Politics, Business, AI/Science
-  → Filter: published_at ≤ 4 days old, English, body_snippet ≥ 100 chars
-  → Output: raw_articles[ {title, url, published_at, source, body_snippet} ]
+trend_score = 0.70 × repetition_score + 0.30 × feed_diversity_score
+```
 
-Step 2: CLUSTER
-  → Embed: article title + first 2 paragraphs
-    (sentence-transformers all-MiniLM-L6-v2, local, zero cost)
-  → DBSCAN clustering (eps=0.3, min_samples=2)
-  → Each cluster = one "event"
-  → Output: clusters[ {articles[], centroid_embedding, cluster_id} ]
+**`repetition_score`** (70% weight) — *How many articles cover this event?*
+```
+repetition_score = log(article_count + 1) / log(max_article_count + 1)
+```
+Normalised logarithmically so a 10-article cluster isn’t 10× better than a 1-article cluster.
+Range: [0.0, 1.0]. A cluster with the most articles scores 1.0.
 
-Step 3: TREND SCORE
-  → Weights (revised — see ADR-003, ADR-010):
-    - repetition_score  70%  → cluster article count / total articles (normalised)
-    - google_trends     30%  → pytrends 7-day interest score, normalised 0–100
-  → trend_score = 0.70*rep + 0.30*gtrends
-  → Sort descending; take top 7 (buffer) → pass top 5 to LLM
+**`feed_diversity_score`** (30% weight) — *How many different feeds reported this event?*
+```
+feed_diversity_score = (unique_feed_count - 1) / (TOTAL_FEEDS - 1)
+```
+With `TOTAL_FEEDS = 12`, a story appearing in 1 feed scores 0.0; appearing in all 12 scores 1.0.
+This replaces the original pytrends slot (ADR-014). A story covered by AI & Chips *and* Economy *and* Politics is more signal-worthy than one appearing only in Tech.
 
-  NOTE: Reddit (PRAW) deferred to V1.1 (ADR-010: saves 1.5 days in 2-week sprint).
-  Original spec also had X + LinkedIn; both dropped (ADR-003: no viable free APIs).
+**Selection:**
+- All clusters sorted descending by `trend_score`
+- Top 7 retained as the LLM enrichment buffer
+- Top 5 of those 7 flagged as `for_llm = True`
+- The 2 buffer slots exist to protect against LLM failures: if a top-5 cluster fails enrichment, the next candidate is available
 
-Step 4: LLM ENRICHMENT  (Groq, llama-3.3-70b-versatile, per event)
-  → Single structured call per cluster; temperature = 0.3
-  → System prompt: "Only use facts from provided articles.
-     Do not add information not present in the source material.
-     Do not provide investment advice, price targets, or buy/sell signals."
-  → Pydantic schema validation; retry up to 2x on schema failure
-  → Outputs per event:
-     a) event_heading      : str  (≤ 15 words)
-     b) summary            : str  (3–4 sentences MAX, facts only, source-grounded)
-     c) why_it_matters     : str  (3–4 sentences MAX, Silicon Valley persona)
-     d) sectors_impacted   : list[SectorImpact], 1–5 items, desc by confidence
-        { sector_name, confidence_score: float 0–1, one_line_reason }
-     e) timeline_context   : str  (1–2 lines)
+**Output:** `output/ranked_clusters.json`
 
-Step 5: ASSEMBLE + CACHE
-  → Per event: attach all cluster articles sorted by published_at DESC
-    (show all; UI caps display at 3 but API returns all for future use)
-  → Write brief to SQLite; set is_current = True; retire previous brief
-  → On pipeline failure: retain last good brief; log + flag as stale
+---
+
+#### Step 4 — LLM ENRICHMENT + PERSONA RESCORING (`pipeline/step4_enrich.py`)
+*Goal: transform raw article clusters into human-readable event cards, then re-rank by audience relevance.*
+
+This step has two sub-phases: **LLM call** then **persona recomputation**.
+
+**4a — LLM Call (per cluster)**
+
+| Setting | Value |
+|---------|-------|
+| Provider (primary) | Google Gemini Flash (free tier, `gemini-2.0-flash`) |
+| Provider (fallback) | Groq `llama-3.3-70b-versatile` (toggled via `LLM_PROVIDER` env var) |
+| Temperature | 0.3 (low — factual, not creative) |
+| Retries | 3 attempts per cluster; exponential backoff |
+| Failure behaviour | RuntimeError caught per-cluster; cluster skipped, loop continues |
+
+**System prompt guardrails (always injected):**
+> “Only use facts from the provided articles. Do not add information not present in the source material. Do not provide investment advice, price targets, or buy/sell recommendations.”
+
+**Structured output schema (Pydantic-validated):**
+```
+event_heading      : str          ≤ 15 words — the event in one sharp line
+summary            : str          3–4 sentences — what happened, facts only
+why_it_matters     : str          3–4 sentences — framed for an SV professional
+timeline_context   : str          1–2 lines — how this fits the longer arc
+sectors_impacted   : list[SectorImpact]   1–5 items, sorted by confidence desc
+  └─ name           : str          from a validated vocabulary of 13 sectors
+  └─ confidence     : float        0.0–1.0 — LLM’s certainty this sector is affected
+```
+
+**Valid sector vocabulary** (LLM must pick from this list — no free-text sectors):
+`Technology`, `Finance`, `Policy & Regulation`, `Energy`, `Defence & Security`,
+`Labour & Employment`, `Manufacturing`, `Agriculture`, `Healthcare`, `Education`,
+`Media & Entertainment`, `Retail & E-commerce`, `Real Estate`
+
+**4b — Persona Recomputation (after LLM returns sectors)**
+
+Once the LLM has returned `sectors_impacted` with real confidence scores, the Step 3 `trend_score` is **replaced** with a persona-weighted final score:
+
+```
+final_signal_score = 0.70 × repetition_score + 0.30 × persona_score
+```
+
+`persona_score` is computed from `PERSONA_WEIGHTS` — a single-source-of-truth dict mapping each sector to its relevance weight for the Silicon Valley professional archetype:
+
+| Sector | Weight | Rationale |
+|--------|--------|----------|
+| Technology | 0.90 | Core domain for the SV persona |
+| Finance | 0.80 | Investment signals, macro impact |
+| Policy & Regulation | 0.75 | Antitrust, AI governance — directly shapes product |
+| Energy | 0.60 | Data centre costs, supply chain |
+| Defence & Security | 0.45 | Relevant but not a daily driver |
+| Labour & Employment | 0.40 | H-1B, visa policy, talent pipeline |
+| Manufacturing | 0.35 | Semiconductor fabs, hardware supply |
+| Healthcare | 0.20 | Low relevance for SV persona |
+| Education | 0.20 | Low relevance for SV persona |
+| Media & Entertainment | 0.25 | Moderate |
+| Retail & E-commerce | 0.30 | Moderate |
+| Agriculture | 0.15 | Lowest relevance |
+| Real Estate | 0.15 | Lowest relevance |
+
+```python
+# Formula (simplified)
+raw = sum(PERSONA_WEIGHTS[sector.name] * sector.confidence for sector in sectors)
+max_possible = sum(top_N weights)   # N = number of sectors returned
+persona_score = clamp(raw / max_possible, min=0.15, max=1.0)
+```
+
+**Why replace Step 3’s 30% slot instead of adding a new dimension?**
+Step 3 cannot use persona scoring because the LLM hasn’t run yet — we don’t know the sectors. Step 4 has the sectors. The formula structure (0.70/0.30) stays identical; only the 30% component changes from a dead proxy (pytrends) to a live audience signal.
+
+**Result — score distribution for today’s brief (sample):**
+```
+#5  Middle East Tensions / Dollar story  → 0.9614  (persona=0.87 — Finance+Tech+Policy)
+#1  India Balanced Diplomacy             → 0.9493  (persona=0.83 — Tech+Policy+Finance)
+#3  Trump-China Tariffs                  → 0.9336  (persona=0.78 — Tech+Manufacturing+Policy)
+#2  US-Iran Negotiations                 → 0.9100  (persona=0.70 — Finance+Policy+Defence)
+```
+
+*Before this change, all clusters collapsed into two score bands: 0.70 or 0.28.*
+
+**Output:** `output/brief.json` — `Brief` object with `events[]`, each containing the full enriched card data + persona-scored `trend_score` + `trend_insight` string.
+
+---
+
+#### Step 5 — ASSEMBLE + CACHE (`app/db.py` + `app/scheduler.py`)
+*Goal: persist the brief atomically so the API can serve it in <500ms.*
+
+1. Attach all cluster articles to each event, sorted by `published_at DESC`
+2. Call `save_brief(brief, duration_s)` — SQLite transaction:
+   - `UPDATE briefs SET is_current = 0` (retire previous brief)
+   - `INSERT INTO briefs ...` (new brief row, `is_current = 1`)
+   - Cascade insert events → sectors → articles
+3. On pipeline failure: last good brief is retained; `is_stale = True` flag exposed in `GET /brief/status`
+4. APScheduler runs this full 5-step chain every **60 minutes**, `max_instances=1` (no overlap)
+
+**Output:** SQLite rows — queried by `GET /brief` in <500ms (cache hit, zero pipeline involvement).
+
+---
+
+#### End-to-End Flow Summary
+
+```
+[12 Google News RSS feeds]
+         ↓  feedparser, 4-day window, keyword filter
+[~150–300 raw articles]                          ← Step 1: FETCH
+         ↓  MiniLM-L6-v2 embeddings + DBSCAN
+[7–15 clusters (events)]                         ← Step 2: CLUSTER
+         ↓  rep_score × 0.70 + feed_diversity × 0.30
+[Top 7 scored; top 5 → LLM]                      ← Step 3: SCORE
+         ↓  Gemini Flash / Groq — structured JSON, 3 retries
+[5 enriched events: heading/summary/sectors]     ← Step 4a: LLM
+         ↓  0.70×rep + 0.30×persona_score
+[Final signal_score — range ~0.91–0.97]          ← Step 4b: PERSONA RESCORE
+         ↓  SQLite atomic write
+[Cached brief served via GET /brief in <500ms]   ← Step 5: CACHE
 ```
 
 ---
@@ -648,19 +820,22 @@ Splash Screen:
 ## 11. Tech Stack
 
 | Layer | Technology | Rationale |
-|-------|-----------|-----------| 
+|-------|-----------|-----------|
 | Mobile | React Native (Expo SDK 52+) | Cross-platform iOS + Android; one codebase |
 | Fonts | Plus Jakarta Sans, Inter, Geist Mono | Via `@expo-google-fonts`; load async |
 | Backend API | Python + FastAPI | Fast, typed, async-ready |
 | Database | SQLite (MVP) | Zero-infra; scales fine for a cache store |
-| LLM | Groq API — llama-3.3-70b-versatile | Best free-tier speed + quality (200+ tok/s) |
-| Embeddings | sentence-transformers (local) | all-MiniLM-L6-v2; free, CPU-only |
+| LLM (primary) | Google Gemini Flash (`gemini-2.0-flash`, free tier) | Best free-tier quality in 2026; switched from Groq as primary |
+| LLM (fallback) | Groq `llama-3.3-70b-versatile` | 200+ tok/s; toggled via `LLM_PROVIDER=groq` env var |
+| Embeddings (primary) | sentence-transformers `all-MiniLM-L6-v2` (local, CPU) | Free, no API, zero cost |
+| Embeddings (fallback) | TF-IDF vectorizer (scikit-learn) | Auto-activates if HuggingFace DNS blocked (ADR-013) |
 | Clustering | scikit-learn DBSCAN | Standard, no API needed |
-| Trend proxy | pytrends (Google Trends) | Free, no API key |
-| Reddit signals | PRAW (Reddit official API) | Free tier; 100 req/min |
-| News fetch | feedparser (Google RSS) | Reliable, no auth |
-| Scheduler | APScheduler | Lightweight; embedded in FastAPI process |
+| Scoring (30% slot) | `PERSONA_WEIGHTS` dict — 13 sector × SV relevance weights | Replaced pytrends (ADR-014); deterministic, tunable |
+| News fetch | feedparser (Google RSS) | 12 feeds; reliable, no auth |
+| Scheduler | APScheduler | Lightweight; embedded in FastAPI process; `max_instances=1` |
 | In-app browser | expo-web-browser | Native sheet; no custom browser needed |
+| ~~Trend proxy~~ | ~~pytrends (Google Trends)~~ | **Dropped** (ADR-014) — blocked on Walmart net, unreliable externally |
+| ~~Reddit signals~~ | ~~PRAW (Reddit official API)~~ | **Dropped** (ADR-010) — deferred to V1.1 |
 
 ---
 
@@ -887,4 +1062,4 @@ Splash Screen:
 
 ---
 
-*News That Matters PRD v1.2 — Code Puppy 🐶 | 2026-04-08*
+*News That Matters PRD v1.3 — Code Puppy 🐶 | Last updated 2026-04-14*
