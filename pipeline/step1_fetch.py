@@ -32,11 +32,14 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Feed configuration — geo-politics focused (US geopolitics, international
-# relations, trade coercion, national security, global conflict)
+# Feed configuration — 12 geo-politics feeds covering the domains that
+# matter most to Silicon Valley professionals. Feed diversity across these
+# 12 is used as the social-signal proxy in step3_score.py.
+# All feeds use Google News RSS search (proxy-whitelisted on Walmart network).
 # ---------------------------------------------------------------------------
 
 FEEDS: list[dict[str, str]] = [
+    # ── Core geopolitics (original 5) ────────────────────────────────────
     {
         "name": "US Geopolitics & Diplomacy",
         "url": (
@@ -77,6 +80,63 @@ FEEDS: list[dict[str, str]] = [
             "&hl=en-US&gl=US&ceid=US:en"
         ),
     },
+    # ── Silicon Valley persona feeds (new 7) ─────────────────────────────
+    {
+        "name": "AI & Chip Export Controls",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=AI+semiconductor+chip+export+controls+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "Dollar & Global Finance",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=dollar+Federal+Reserve+central+bank+currency+geopolitics+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "Energy & Critical Minerals",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=oil+energy+OPEC+lithium+cobalt+critical+minerals+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "India & Gulf Relations",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=India+Gulf+Modi+diplomacy+Middle+East+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "Cyber & Espionage",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=cyberattack+espionage+hack+state-sponsored+signals+intelligence+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "Africa & Global South",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=Africa+China+Global+South+Belt+Road+Initiative+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
+    {
+        "name": "Tech Regulation & Antitrust",
+        "url": (
+            "https://news.google.com/rss/search"
+            "?q=antitrust+big+tech+regulation+EU+FTC+data+privacy+when:4d"
+            "&hl=en-US&gl=US&ceid=US:en"
+        ),
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -98,17 +158,24 @@ _GEO_KEYWORDS: frozenset[str] = frozenset({
     "china", "russia", "ukraine", "iran", "israel", "taiwan", "north korea",
     "middle east", "europe", "eu ", "india", "pakistan", "saudi",
     "britain", "uk ", "japan", "south korea", "australia", "mexico",
-    "iran", "turkey", "venezuela", "cuba",
+    "iran", "turkey", "venezuela", "cuba", "africa", "gulf", "opec",
     # Conflict & security
     "war", "conflict", "military", "troops", "armed forces", "missile",
     "nuclear", "intelligence", "cia", "pentagon", "defense", "deterrence",
     "national security", "state department", "geopolit",
+    "cyberattack", "cyber attack", "espionage", "hack", "state-sponsored",
     # US executive / international decisions
     "white house", "president", "administration", "executive order",
     "secretary of state", "national security council", "foreign minister",
     # Strategic competition
     "superpower", "great power", "hegemony", "sphere of influence",
     "cold war", "proxy", "coercion", "influence operation",
+    "belt and road", "global south",
+    # Tech & finance with geopolitical dimension (new feeds)
+    "semiconductor", "chip", "export control", "ai regulation",
+    "federal reserve", "central bank", "currency", "dollar",
+    "lithium", "cobalt", "critical mineral", "rare earth",
+    "antitrust", "ftc", "data privacy", "data sovereignty",
 })
 
 

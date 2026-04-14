@@ -68,6 +68,52 @@ FINANCIAL_ADVICE_PHRASES = [
     "price target", "stock pick", "you should purchase",
 ]
 
+# ---------------------------------------------------------------------------
+# Persona relevance scoring (Option 1 — replaces dead pytrends 30% weight)
+#
+# Weights reflect what a Silicon Valley professional (PM / founder / investor)
+# actually cares about in a geopolitical brief. Sector names must match
+# VALID_SECTORS exactly. Anything not listed defaults to 0.2 (low relevance).
+# Tuning: raise a weight if that sector keeps producing under-ranked stories;
+# lower it if stories feel noisy. Single source of truth — change here only.
+# ---------------------------------------------------------------------------
+
+PERSONA_WEIGHTS: dict[str, float] = {
+    "Technology":          0.90,   # AI, chips, export controls — core domain
+    "Finance":             0.80,   # dollar, rates, investment flows
+    "Policy & Regulation": 0.75,   # antitrust, data privacy, AI governance
+    "Energy":              0.60,   # supply chain, data centre costs
+    "Defence & Security":  0.45,   # relevant but not daily-driver for SV
+    "Labour & Employment": 0.40,   # visa policy, H-1B affects talent pipeline
+    "Manufacturing":       0.35,   # semiconductor fabs, hardware supply chain
+    "Agriculture":         0.15,   # low relevance for SV persona
+    "Healthcare":          0.20,
+    "Education":           0.20,
+    "Media & Entertainment":   0.25,
+    "Retail & E-commerce":     0.30,
+    "Real Estate":             0.15,
+}
+
+
+def _persona_score(sectors: list[SectorImpact]) -> float:
+    """
+    Compute audience-relevance score [0.0–1.0] for the SV professional persona.
+    Replaces the dead pytrends 30% weight in the final trend_score.
+
+    Formula: weighted sum of (sector_weight × llm_confidence), normalised.
+    Cap at 1.0; floor at 0.15 so even low-relevance events aren’t zeroed out.
+    """
+    if not sectors:
+        return 0.15
+    raw = sum(
+        PERSONA_WEIGHTS.get(s.name, 0.20) * s.confidence
+        for s in sectors
+    )
+    # Normalise against the max possible score (all top sectors at confidence=1)
+    max_possible = sum(sorted(PERSONA_WEIGHTS.values(), reverse=True)[:len(sectors)])
+    normalised = raw / max_possible if max_possible > 0 else raw
+    return round(min(1.0, max(0.15, normalised)), 4)
+
 SYSTEM_PROMPT = """You are a senior geopolitical intelligence analyst writing for busy Silicon Valley
 professionals aged 28–45 — product managers, startup founders, and early-stage investors.
 They are smart, time-pressed, and value signal over noise. They need to understand how
@@ -348,36 +394,57 @@ def enrich_clusters(
     events: list[EnrichedEvent] = []
     for sc in candidates:
         t0 = time.time()
-        headline = sc.cluster.headline_article.title[:55]
+        try:
+            if dry_run:
+                event = _make_mock_event(sc)
+            else:
+                raw = _call_gemini(client, sc) if provider == "gemini" else _call_groq(client, sc)
+                event = EnrichedEvent(
+                    rank=sc.rank,
+                    trend_score=sc.trend_score,
+                    trend_insight=sc.trend_insight,
+                    event_heading=raw["event_heading"],
+                    summary=raw["summary"],
+                    why_it_matters=raw["why_it_matters"],
+                    sectors_impacted=[
+                        SectorImpact(name=s["name"], confidence=float(s["confidence"]))
+                        for s in sorted(
+                            raw["sectors_impacted"],
+                            key=lambda x: x["confidence"],
+                            reverse=True,
+                        )
+                    ],
+                    timeline_context=raw["timeline_context"],
+                    source_articles=sc.cluster.articles,
+                    signal_source=sc.signal_source,
+                )
 
-        if dry_run:
-            event = _make_mock_event(sc)
-        else:
-            raw = _call_gemini(client, sc) if provider == "gemini" else _call_groq(client, sc)
-            event = EnrichedEvent(
-                rank=sc.rank,
-                trend_score=sc.trend_score,
-                trend_insight=sc.trend_insight,
-                event_heading=raw["event_heading"],
-                summary=raw["summary"],
-                why_it_matters=raw["why_it_matters"],
-                sectors_impacted=[
-                    SectorImpact(name=s["name"], confidence=float(s["confidence"]))
-                    for s in sorted(
-                        raw["sectors_impacted"],
-                        key=lambda x: x["confidence"],
-                        reverse=True,
-                    )
-                ],
-                timeline_context=raw["timeline_context"],
-                source_articles=sc.cluster.articles,
-                signal_source=sc.signal_source,
+            # ── Persona score recomputation ────────────────────────────────────
+            # Replace the dead 30% social weight with audience relevance.
+            # Formula: 0.70 × rep_score (coverage) + 0.30 × persona_score
+            p_score   = _persona_score(event.sectors_impacted)
+            event.trend_score = round(0.70 * sc.repetition_score + 0.30 * p_score, 4)
+            rep_pct   = int(round(sc.repetition_score * 100))
+            pers_pct  = int(round(p_score * 100))
+            total_pct = int(round(event.trend_score * 100))
+            event.trend_insight = (
+                f"{total_pct}% signal score: {rep_pct}% coverage (70%) "
+                f"+ {pers_pct}% persona relevance (30%). "
+                f"Sectors: {', '.join(s.name for s in event.sectors_impacted[:3])}."
             )
 
-        elapsed = time.time() - t0
-        log.info(f"  #{event.rank} ✓ {elapsed:.1f}s | \"{event.event_heading[:50]}\"")
-        log.info(f"       sectors: {[s.name for s in event.sectors_impacted]}")
-        events.append(event)
+            elapsed = time.time() - t0
+            log.info(
+                f"  #{event.rank} ✓ {elapsed:.1f}s | signal={event.trend_score:.3f} "
+                f"(rep={sc.repetition_score:.2f} persona={p_score:.2f}) "
+                f"| \"{event.event_heading[:45]}\""
+            )
+            events.append(event)
+
+        except RuntimeError as exc:
+            # A partial brief beats no brief — log and continue.
+            log.error(f"  #{sc.rank} ✗ Skipping — all retries exhausted: {exc}")
+            continue
 
     brief = Brief(events=events)
     log.info(f"Step 4: Brief built — {len(events)} events enriched.")

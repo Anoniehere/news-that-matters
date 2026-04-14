@@ -51,7 +51,7 @@ WEIGHT_REP     = 0.70   # ADR-003, ADR-010
 WEIGHT_SOCIAL  = 0.30
 TOP_N_TOTAL    = 7      # buffer passed through pipeline
 TOP_N_LLM      = 5      # flagged for_llm=True → step4_enrich
-TOTAL_FEEDS    = 5      # US Top Stories, Technology, Economy, US Politics, AI & Science
+TOTAL_FEEDS    = 12     # 5 core geopolitics + 7 SV-persona feeds (step1_fetch.py)
 PYTRENDS_SLEEP = 2.0    # seconds between pytrends calls (exit criterion)
 
 INPUT_PATH  = Path("output/clusters.json")
