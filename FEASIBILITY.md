@@ -1,4 +1,4 @@
-# ⚡ Signal Brief — 2-Week Feasibility Analysis
+# ⚡ News That Matters — 2-Week Feasibility Analysis
 **Date:** 2026-04-08 | **Requested by:** Astha
 **Verdict up front:** YES — 2 weeks is achievable. The original 27-day estimate had ~11 days
 of unnecessary PM buffer. Real engineering time is ~11–12 days solo, ~6 days with 2 devs.

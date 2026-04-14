@@ -33,7 +33,7 @@ BRIEF_JSON = Path("output/brief.json")
 def seed_db():
     """
     Pre-seed the SQLite DB from output/brief.json before the app starts.
-    Runs once per test session. Uses the real DB path (signal_brief.db).
+    Runs once per test session. Uses the real DB path (news_that_matters.db).
     """
     if not BRIEF_JSON.exists():
         pytest.skip("output/brief.json not found — run M3 pipeline first")

@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
 EMBED_MODEL        = "all-MiniLM-L6-v2"
-EMBED_MODEL_LOCAL  = Path.home() / ".cache" / "signal-brief" / "models" / "all-MiniLM-L6-v2"
+EMBED_MODEL_LOCAL  = Path.home() / ".cache" / "news-that-matters" / "models" / "all-MiniLM-L6-v2"
 EPS_NEURAL    = 0.65   # starting threshold for neural embeddings on RSS snippets
                        # math: eps=0.65 → cosine_sim > 0.79 on L2-norm vectors
                        # (short RSS titles need looser threshold than full-doc models)
@@ -48,7 +48,7 @@ def _embed_neural(texts: list[str]) -> tuple[np.ndarray, float]:
     Return L2-normalised neural embeddings + recommended eps.
 
     Model resolution order:
-      1. Local cache at ~/.cache/signal-brief/models/all-MiniLM-L6-v2
+      1. Local cache at ~/.cache/news-that-matters/models/all-MiniLM-L6-v2
          (assembled by scripts/download_model.py — works on Walmart network)
       2. HuggingFace Hub download (works on open internet / production)
     """

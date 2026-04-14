@@ -1,4 +1,4 @@
-# 📋 Signal Brief — Architecture Decision Record
+# 📋 News That Matters — Architecture Decision Record
 > Every significant technical or product decision is logged here with context and rationale.
 > Before changing an accepted decision, add a new ADR — don't delete the old one.
 > Format: ADR-NNN | Date | Status: Proposed → Accepted | Deprecated | Superseded by ADR-NNN
@@ -252,7 +252,7 @@ visible on the home screen card itself. Tapping a card navigates to the Article 
 **Decider:** Astha (PM)
 
 **Context:**
-Signal Brief is a standalone consumer app, not a Walmart internal tool.
+News That Matters is a standalone consumer app, not a Walmart internal tool.
 
 **Decision:**
 Use a bespoke modern design system. Reference aesthetics: Perplexity AI, Linear, Reflect, Arc.
@@ -394,7 +394,7 @@ No code change required to switch — fallback is detected at runtime.
   - eps=1.0 base (cosine_sim > 0.5 threshold); auto-retry up to eps*2.0
 
 **Neural model resolution order (step2_cluster.py):**
-  1. ~/.cache/signal-brief/models/all-MiniLM-L6-v2 (local, assembled by download_model.py)
+  1. ~/.cache/news-that-matters/models/all-MiniLM-L6-v2 (local, assembled by download_model.py)
   2. HuggingFace Hub download (production / open internet)
   3. TF-IDF fallback (if both above fail)
 
@@ -403,7 +403,7 @@ No code change required to switch — fallback is detected at runtime.
   Root cause: XetHub CDN (where model weights live) closes the httpx connection before
   the 87MB download completes. curl is unaffected.
   Solution: scripts/download_model.py uses curl for the binary blob (--max-time 300)
-  and direct CDN for small text files. Model assembles to ~/.cache/signal-brief/models/.
+  and direct CDN for small text files. Model assembles to ~/.cache/news-that-matters/models/.
 
 **Why TF-IDF works for news clustering:**
 Same-event news articles share proper nouns (names, tickers, legislation IDs).

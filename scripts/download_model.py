@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Download the sentence-transformers embedding model for Signal Brief.
+Download the sentence-transformers embedding model for News That Matters.
 
 Required once per machine. After this runs the model is cached at:
-  ~/.cache/signal-brief/models/all-MiniLM-L6-v2/
+  ~/.cache/news-that-matters/models/all-MiniLM-L6-v2/
 ...and the pipeline uses it automatically — no more TF-IDF fallback.
 
 Strategy (Walmart network-aware):
@@ -28,7 +28,7 @@ from pathlib import Path
 MODEL_NAME  = "all-MiniLM-L6-v2"
 HF_REPO     = "sentence-transformers/all-MiniLM-L6-v2"
 HF_BASE_URL = f"https://huggingface.co/{HF_REPO}/resolve/main"
-LOCAL_DIR   = Path.home() / ".cache" / "signal-brief" / "models" / MODEL_NAME
+LOCAL_DIR   = Path.home() / ".cache" / "news-that-matters" / "models" / MODEL_NAME
 PROXY       = "http://sysproxy.wal-mart.com:8080"
 
 # Text files served directly by HF CDN (no XetHub redirect)
@@ -163,7 +163,7 @@ def verify_model() -> None:
 
 
 def main() -> None:
-    print("⚡ Signal Brief — Neural Embedding Model Setup")
+    print("⚡ News That Matters — Neural Embedding Model Setup")
     print(f"   Target: {LOCAL_DIR}")
     print("=" * 60)
 

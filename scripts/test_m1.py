@@ -40,7 +40,7 @@ def check(label: str, condition: bool, detail: str = "") -> bool:
 
 
 def main() -> None:
-    print(f"\n⚡ Signal Brief — M1 Smoke Test")
+    print(f"\n⚡ News That Matters — M1 Smoke Test")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(SEP)
 

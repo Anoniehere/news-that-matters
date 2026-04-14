@@ -1,5 +1,5 @@
 """
-app/main.py — FastAPI application for Signal Brief.
+app/main.py — FastAPI application for News That Matters.
 
 Endpoints:
     GET /brief         — returns the current enriched brief (< 500ms cache hit)

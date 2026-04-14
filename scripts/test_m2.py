@@ -47,7 +47,7 @@ def main() -> None:
     start = time.time()
     failures: list[str] = []
 
-    print(f"\n⚡ Signal Brief — M2 Smoke Test")
+    print(f"\n⚡ News That Matters — M2 Smoke Test")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # ── M1: Fetch ────────────────────────────────────────────────────────

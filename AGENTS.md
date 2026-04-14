@@ -1,4 +1,4 @@
-# 🐶 Signal Brief — AI Agent Instructions
+# 🐶 News That Matters — AI Agent Instructions
 > This file tells the AI coding assistant HOW to work on this project.
 > Read `CONTEXT.md` first for the what. This file is the how.
 
@@ -212,8 +212,8 @@ cd mobile && npx expo start
 GROQ_API_KEY=gsk_...
 REDDIT_CLIENT_ID=...
 REDDIT_CLIENT_SECRET=...
-REDDIT_USER_AGENT=signal-brief/1.0 by /u/yourusername
-DATABASE_URL=sqlite:///./signal_brief.db
+REDDIT_USER_AGENT=news-that-matters/1.0 by /u/yourusername
+DATABASE_URL=sqlite:///./news_that_matters.db
 PIPELINE_INTERVAL_MINUTES=60
 LOG_LEVEL=INFO
 ```

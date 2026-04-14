@@ -83,7 +83,7 @@ def similarity_spot_check(articles: list[Article]) -> None:
     ssl._create_default_https_context = ssl._create_unverified_context
     from sentence_transformers import SentenceTransformer
     from pathlib import Path
-    LOCAL = Path.home() / ".cache" / "signal-brief" / "models" / "all-MiniLM-L6-v2"
+    LOCAL = Path.home() / ".cache" / "news-that-matters" / "models" / "all-MiniLM-L6-v2"
     model = SentenceTransformer(str(LOCAL) if LOCAL.exists() else "all-MiniLM-L6-v2")
     neural_vecs = normalize(model.encode(all_texts), norm="l2")
 
@@ -113,7 +113,7 @@ def main() -> None:
     logging.disable(logging.WARNING)   # silence pipeline logs for clean output
 
     print(f"\n{SEP2}")
-    print("  ⚡ Signal Brief — Embedding Quality Comparison")
+    print("  ⚡ News That Matters — Embedding Quality Comparison")
     print(f"  TF-IDF vs all-MiniLM-L6-v2 (neural)")
     print(f"{SEP2}")
 

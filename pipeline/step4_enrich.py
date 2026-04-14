@@ -478,7 +478,7 @@ def main() -> None:
 
     # Pretty-print to terminal
     print("\n" + "─" * 60)
-    print(f"⚡ SIGNAL BRIEF  —  {datetime.now().strftime('%A, %B %d %Y')}")
+    print(f"⚡ NEWS THAT MATTERS  —  {datetime.now().strftime('%A, %B %d %Y')}")
     print("─" * 60)
     for ev in brief.events:
         sectors = " · ".join(

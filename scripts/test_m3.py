@@ -198,7 +198,7 @@ def main() -> None:
     start = time.time()
     failures: list[str] = []
 
-    print(f"\n⚡ Signal Brief — M3 Smoke Test  ({'LIVE' if args.live else 'DRY RUN'})")
+    print(f"\n⚡ News That Matters — M3 Smoke Test  ({'LIVE' if args.live else 'DRY RUN'})")
 
     if args.live:
         banner("🚀 Live Pipeline — M1 + M2 + M3")

@@ -75,7 +75,7 @@ Background Pipeline (APScheduler, runs every 60 min)
 ## Project File Structure (target — builds up as milestones complete)
 
 ```
-signal-brief/
+news-that-matters/
 ├── pipeline/
 │   ├── step1_fetch.py        ← M1: RSS ingestion
 │   ├── step2_cluster.py      ← M1: embeddings + DBSCAN
@@ -144,7 +144,7 @@ They have ~90 seconds to absorb this event. Tailor explanations accordingly.
 
 ```bash
 # Install Python deps (backend)
-cd signal-brief && uv venv && source .venv/bin/activate
+cd news-that-matters && uv venv && source .venv/bin/activate
 uv pip install fastapi uvicorn apscheduler sentence-transformers \
   scikit-learn feedparser praw pytrends groq pydantic sqlmodel \
   --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple \

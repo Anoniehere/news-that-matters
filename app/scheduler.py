@@ -60,7 +60,7 @@ def build_scheduler() -> BackgroundScheduler:
         run_pipeline_job,
         trigger=IntervalTrigger(minutes=interval_min, timezone="UTC"),
         id="pipeline",
-        name="Signal Brief full pipeline",
+        name="News That Matters full pipeline",
         replace_existing=True,
     )
     log.info("Scheduler: pipeline job registered — every %d min", interval_min)

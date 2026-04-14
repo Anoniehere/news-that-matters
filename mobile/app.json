@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "News That Matters",
-    "slug": "signal-brief",
+    "slug": "news-that-matters",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.signalbrief.app"
+      "bundleIdentifier": "com.newsthatmatters.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#09090B"
       },
-      "package": "com.signalbrief.app"
+      "package": "com.newsthatmatters.app"
     },
     "web": {
       "bundler": "metro"

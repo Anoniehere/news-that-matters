@@ -624,7 +624,7 @@ Score label: Geist Mono, 11px, --text-secondary
 STATUS BAR (system)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NAV BAR
-  ⚡ Signal Brief                          [settings ⚙]
+  ⚡ News That Matters                          [settings ⚙]
   Plus Jakarta Sans 800, 20px              icon 24px
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -778,7 +778,7 @@ App Icon:
 Splash Screen:
   Background : #09090B
   Center mark: same icon mark, 80px
-  Tagline    : "signal brief" in Plus Jakarta Sans 600, 14px, --text-muted
+  Tagline    : "news that matters" in Plus Jakarta Sans 600, 14px, --text-muted
   Animation  : fade in 300ms, then app loads behind it
 ```
 

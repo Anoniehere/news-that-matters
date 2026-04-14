@@ -1,4 +1,4 @@
-# 📊 Signal Brief — Progress Tracker
+# 📊 News That Matters — Progress Tracker
 > Update this file at the END of every session.
 > It is the AI's memory between sessions — if it's not here, it didn't happen.
 

@@ -1,5 +1,5 @@
 """
-app/db.py — SQLite persistence layer for Signal Brief.
+app/db.py — SQLite persistence layer for News That Matters.
 
 Stores the latest enriched Brief as JSON. One row is always current
 (is_current=1). New briefs flip the flag atomically to prevent serving
@@ -24,7 +24,7 @@ from models.schemas import Brief
 
 log = logging.getLogger(__name__)
 
-DB_PATH = Path("signal_brief.db")   # relative to CWD (project root)
+DB_PATH = Path("news_that_matters.db")   # relative to CWD (project root)
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS briefs (
