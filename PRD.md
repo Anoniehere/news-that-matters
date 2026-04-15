@@ -9,6 +9,7 @@
 | 1.2 | 2026-04-10 | Scope cuts: pytrends → feed_diversity fallback (ADR-014); Reddit dropped (ADR-010); TF-IDF fallback for embeddings (ADR-013) |
 | 1.3 | 2026-04-14 | Scoring overhaul shipped: 12 feeds, persona relevance replaces pytrends, §5.1 consolidated intelligence logic |
 | 1.4 | 2026-04-14 | Accuracy pass: fixed wrong eps values in §5.1, stale sector color map in §8.2, dropped pytrends/Reddit from §9/§13/§14, closed answered questions in §12 |
+| 1.5 | 2026-04-14 | Light mode promoted to primary: prototype-v2.html → web/index.html; dark OLED retired; §8.1/§8.2/§8.10/§10 updated |
 
 ---
 
@@ -91,7 +92,7 @@ There is no product that gives you **trend signal + causal depth + sector impact
 | Embeddings | ✅ `all-MiniLM-L6-v2` (sentence-transformers, local). **TF-IDF fallback** auto-activates if HuggingFace DNS is blocked (ADR-013). |
 | Home screen UX | ✅ **Full event content on card** (heading + summary + why it matters + sector tags). |
 | Click-through UX | ✅ **Tap card → article list screen** showing source articles sorted by recency (newest first), grouped by date. |
-| Light mode | ✅ **`prototype-v2.html`** built as light-mode swipe-card prototype. Not yet merged into `web/index.html` (dark OLED). V1.1 candidate. |
+| Light mode | ✅ **Primary UI.** Light-mode swipe-card design (`prototype-v2.html`) is now `web/index.html`. Dark OLED version retired. |
 
 ---
 
@@ -420,38 +421,38 @@ Manual pipeline trigger. Rate-limited: 1 call / 30 minutes.
 | **Editorial authority** | Typography-led hierarchy; feels like a quality publication |
 | **Calm intelligence** | Smart but never anxious. No red dots, urgent badges, or FOMO triggers |
 | **Depth on demand** | Full insight visible immediately; sources a tap away |
-| **Dark mode primary** | Premium feel; easy on eyes for morning/evening use |
+| **Light mode primary** | Clean, editorial, readable in any lighting — matches swipe-card prototype-v2 design |
 
-**Closest design references:** Perplexity AI · Linear · Reflect · Arc browser
+**Closest design references:** Perplexity AI · Linear · Reflect · Arc browser · Apple News (light mode)
 
 ---
 
 ### 8.2 Color System
 
 ```
-── Dark Mode (default) ─────────────────────────────────────
-  --bg-base       : #09090B   ← near-black (Zinc 950)
-  --bg-surface    : #18181B   ← card background (Zinc 900)
-  --bg-elevated   : #27272A   ← hover / pressed state
-  --border-subtle : #3F3F46   ← card borders, dividers
-  --text-primary  : #FAFAFA   ← headings, body
-  --text-secondary: #A1A1AA   ← labels, metadata
-  --text-muted    : #71717A   ← timestamps, fine print
+── Light Mode (default) ────────────────────────────────────
+  --bg-base       : #ede9fe   ← soft lavender (matches prototype-v2)
+  --bg-surface    : #FFFFFF   ← white cards
+  --bg-elevated   : #f5f3ff   ← hover / pressed state
+  --border-subtle : #ddd6fe   ← card borders, dividers
+  --text-primary  : #111827   ← headings, body
+  --text-secondary: #4b5563   ← labels, metadata
+  --text-muted    : #9ca3af   ← timestamps, fine print
 
-  --accent        : #818CF8   ← Indigo 400  (primary interactive)
-  --accent-dim    : #312E81   ← Indigo 900  (tag backgrounds)
-  --positive      : #34D399   ← Emerald 400 (trend high, success)
-  --warning       : #FBBF24   ← Amber 400   (trend medium)
-  --alert         : #F87171   ← Red 400     (trend low, error)
+  --accent        : #7c3aed   ← Violet 600  (primary interactive)
+  --accent-dim    : #ede9fe   ← Violet 50   (tag backgrounds)
+  --positive      : #16a34a   ← Green 600   (trend high, success)
+  --warning       : #d97706   ← Amber 600   (trend medium)
+  --alert         : #dc2626   ← Red 600     (trend low, error)
 
-── Light Mode ───────────────────────────────────────────────
-  --bg-base       : #F4F4F5
-  --bg-surface    : #FFFFFF
-  --bg-elevated   : #F4F4F5
-  --border-subtle : #E4E4E7
-  --text-primary  : #09090B
-  --text-secondary: #52525B
-  --text-muted    : #A1A1AA
+── Dark Mode (available, not default) ──────────────────────
+  --bg-base       : #09090B
+  --bg-surface    : #18181B
+  --bg-elevated   : #27272A
+  --border-subtle : #3F3F46
+  --text-primary  : #FAFAFA
+  --text-secondary: #A1A1AA
+  --text-muted    : #71717A
   (accent tokens unchanged)
 ```
 
@@ -764,12 +765,12 @@ HOME INDICATOR (system)
 ```
 App Icon:
   Shape : rounded square (standard)
-  Base  : #09090B (near-black)
-  Mark  : "⚡" lightning bolt in gradient (#818CF8 → #34D399)
+  Base  : #ede9fe (soft lavender — matches light mode bg)
+  Mark  : "⚡" lightning bolt in violet (#7c3aed)
   Style : flat, no drop shadow, bold
 
 Splash Screen:
-  Background : #09090B
+  Background : #ede9fe
   Center mark: same icon mark, 80px
   Tagline    : "news that matters" in Plus Jakarta Sans 600, 14px, --text-muted
   Animation  : fade in 300ms, then app loads behind it
@@ -806,7 +807,6 @@ Splash Screen:
 | Bookmarks / saved events | Requires persistent storage or auth |
 | International news | US-first, validate PMF |
 | Monetization | Focus on PMF |
-| Light mode | Dark mode ships first; light mode in v1.1 |
 
 ---
 

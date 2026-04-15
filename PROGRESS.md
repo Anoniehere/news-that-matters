@@ -246,7 +246,7 @@ M6 next steps:
 - [ ] App loads in < 1s on production API (measured from device)
 - [ ] Pipeline runs successfully on server ≥ 3 consecutive times
 - [ ] 50-run red-team: 0 financial advice outputs, 0 flagged hallucinations
-- [ ] WCAG 2.2 AA contrast verified (dark + light mode)
+- [ ] WCAG 2.2 AA contrast verified (light mode primary; dark mode available)
 - [ ] E2E: home loads → tap card → article list → tap article → browser
 - [ ] TestFlight build submitted + installable on test device
 - [ ] App icon + splash screen render correctly on iOS + Android
@@ -275,7 +275,7 @@ Pipeline current state:
   - step4_enrich.py : Gemini Flash primary / Groq fallback, PERSONA_WEIGHTS,
                       per-cluster try/except safety net, persona rescore
   - app/main.py     : FastAPI, SQLite cache, APScheduler 60min
-  - prototype-v2.html: light mode swipe card UI — NOT yet merged into web/index.html
+  - prototype-v2.html: light mode swipe card UI — ✅ NOW PRIMARY (copied to web/index.html; dark OLED retired)
 
 M7 Tasks:
   1. Switch API_BASE in mobile/services/api.ts to production URL
@@ -287,7 +287,7 @@ M7 Tasks:
   7. is_stale banner appears if pipeline down > 2 hours
 
 Optional (V1.1 scope):
-  - Merge prototype-v2.html light-mode design into web/index.html
+  - ✅ DONE: prototype-v2.html is now web/index.html (light mode is primary)
   - Re-sort brief events by final_signal_score (currently ordered by step3 rank)
 
 Done when:
