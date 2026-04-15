@@ -117,14 +117,29 @@
     .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:900;
       line-height:1.25;letter-spacing:-.025em;color:#111827;margin-bottom:8px;flex-shrink:0}
 
-    /* ── Tabs FEAT 2 ── */
-    .tab-bar{display:flex;gap:3px;background:#f3f4f6;border-radius:12px;
-      padding:3px;margin-bottom:10px;flex-shrink:0}
+    /* ── Tabs ── */
+    .tab-bar{display:flex;gap:4px;padding:3px;margin-bottom:10px;
+      background:#f3f4f6;border-radius:12px;flex-shrink:0}
+
+    /* default inactive state */
     .tab-btn{flex:1;padding:6px 4px;border-radius:9px;border:none;background:transparent;
-      font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s ease;
-      white-space:nowrap;touch-action:manipulation}
+      font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;
+      transition:all .2s ease;white-space:nowrap;touch-action:manipulation}
+
+    /* What Happened — active: plain white pill */
     .tab-btn.active{background:#fff;color:var(--text);
       box-shadow:0 1px 4px rgba(0,0,0,.1),0 0 0 .5px rgba(0,0,0,.06)}
+
+    /* Why It Matters — always accent-tinted, even when inactive */
+    .tab-btn.matters-btn{color:var(--accent);
+      background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(192,38,211,.07));
+      border:1px solid rgba(124,58,237,.18)}
+
+    /* Why It Matters — active: full accent fill */
+    .tab-btn.matters-btn.active{
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+      color:#fff;border-color:transparent;
+      box-shadow:0 2px 8px rgba(124,58,237,.35)}
 
     /* ── Tab content — grid-stacked for zero layout shift FEAT 2 ── */
     .tab-content{display:grid;grid-template-columns:1fr;flex:1;min-height:0;overflow:hidden}
@@ -444,8 +459,8 @@ function buildCard(ev,idx){
       </div>
       <h2 class="card-heading">${esc(ev.heading)}</h2>
       <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('${id}','happened',this,0)">What Happened</button>
-        <button class="tab-btn"        onclick="switchTab('${id}','matters', this,1)">Why It Matters →</button>
+        <button class="tab-btn active"         onclick="switchTab('${id}','happened',this,0)">What Happened</button>
+        <button class="tab-btn matters-btn"    onclick="switchTab('${id}','matters', this,1)">✦ Why It Matters</button>
       </div>
       <div class="tab-content" id="${id}-wrap">
         <div id="${id}-happened" class="tab-pane active">
