@@ -41,8 +41,7 @@ No login. No social feed. No noise. Pure signal.
 Browser / Mobile App (React Native / Expo)
     ↓ GET /brief
 FastAPI Backend  (localhost:8001 dev; Render/Railway prod)
-    ├─ GET /             → web/index.html     (dark OLED swipe UI)
-    ├─ GET /prototype    → output/prototype-v2.html  (light mode, iterating)
+    ├─ GET /             → web/index.html     (light-mode swipe UI — THE only UI)
     ├─ GET /brief        → SQLite cache hit < 500ms
     └─ GET /health
     ↓ reads from
@@ -102,9 +101,7 @@ news-that-matters/
 │   ├── db.py                 ← M4: SQLite ORM
 │   └── scheduler.py          ← M4: APScheduler 60min; respects quota_blocked flag
 ├── web/
-│   └── index.html            ← dark OLED swipe-card UI (served at /)
-├── output/                  ← runtime artifacts (in .gitignore except HTML reports)
-│   ├── prototype-v2.html     ← light-mode prototype (served at /prototype)
+│   └── index.html            ← light-mode swipe-card UI (served at /); THE only UI
 │   ├── clusters.json
 │   ├── ranked_clusters.json
 │   ├── brief.json
@@ -148,8 +145,9 @@ news-that-matters/
 - **No financial advice.** Guardrail in system prompt + UI disclaimer. Non-negotiable.
 - **Groq is gone** — groq.com is blocked on Walmart network. Do not add it back without testing connectivity.
 - **LLM chain = Gemini only** — 2.5-flash → 2.0-flash → 1.5-flash. Single `GEMINI_API_KEY`.
-- **Prototype ≠ main UI** — `prototype-v2.html` and `web/index.html` are separate files.
-  Prototype is NOT merged into main until Astha explicitly approves.
+- **Prototype → Primary UI** — `web/index.html` is the light-mode swipe-card UI (ADR-025).
+  Dark OLED retired. No `/prototype` route. One UI, one truth.
+  Tab switch ("What Happened" / "Why It Matters") is kept.
 
 ---
 
@@ -171,9 +169,8 @@ They have ~90 seconds to absorb this event. Tailor explanations accordingly.
 cd news-that-matters
 .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --log-level info
 # Then open:
-#   http://localhost:8001/           ← dark OLED UI
-#   http://localhost:8001/prototype  ← light mode prototype
-#   http://localhost:8001/health     ← health check
+#   http://localhost:8001/       ← light-mode swipe-card UI (THE UI)
+#   http://localhost:8001/health ← health check
 
 # Run full pipeline manually
 .venv/bin/python pipeline/run_pipeline.py
@@ -218,4 +215,4 @@ uv pip install -r requirements.txt \
 
 ---
 
-*Last updated: 2026-04-15 | Version: 2.0*
+*Last updated: 2026-04-15 | Version: 2.1*

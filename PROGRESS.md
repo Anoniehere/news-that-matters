@@ -273,12 +273,12 @@ Context (as of 2026-04-15 end of session):
   ⚠️  Use `python -m uvicorn`, NOT `.venv/bin/uvicorn` — the shebang in the
       latter points to the old signal-brief venv and raises "bad interpreter".
 
-Frontend state (IMPORTANT — read carefully):
-  - http://localhost:8001/          → dark OLED swipe-card UI (web/index.html)
-  - http://localhost:8001/prototype → light-mode prototype (output/prototype-v2.html)
-  - prototype-v2.html and web/index.html are SEPARATE FILES — prototype is NOT merged.
-  - Tab switch (What Happened / Why It Matters) is STILL IN the prototype — not removed.
-  - Timeline component: removed from prototype only (CSS + JS + data all gone).
+Frontend state:
+  - http://localhost:8001/ → light-mode swipe-card UI (web/index.html) — THE only UI
+  - Dark OLED UI: retired and deleted (ADR-025)
+  - /prototype route: removed — returns 404
+  - Tab switch (What Happened / Why It Matters): KEPT per PM decision
+  - Timeline: removed (ADR-024)
 
 Pipeline current state:
   - step1_fetch.py  : 12 feeds, _GEO_KEYWORDS expanded
@@ -347,6 +347,7 @@ Done when:
 | 2026-04-15 | **Frontend served over FastAPI (not file://)** | ADR-022 | / → dark UI, /prototype → light prototype; same-origin removes CORS friction |
 | 2026-04-15 | **Prototype unbreakable UX: static-first, silent API upgrade** | ADR-023 | showLoading/showError deleted; cards always visible; API outage = sample banner only |
 | 2026-04-15 | **Timeline removed from prototype cards** | ADR-024 | CSS + JS + data all deleted; zero references verified |
+| 2026-04-15 | **Light-mode UI promoted to primary; dark OLED retired** | ADR-025 | prototype-v2.html → web/index.html; /prototype route removed; one UI only |
 
 ---
 

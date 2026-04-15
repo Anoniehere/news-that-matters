@@ -180,8 +180,7 @@ time curl -s localhost:8001/brief > /dev/null  # second call — must be faster
 ```
 **Routes:**
 ```
-GET /           → web/index.html     (dark OLED UI)
-GET /prototype  → output/prototype-v2.html  (light mode prototype — NOT the same file)
+GET /           → web/index.html     (light-mode swipe UI — THE only UI)
 GET /brief      → cached JSON brief
 GET /health     → {"status": "ok", "ts": "..."}
 ```

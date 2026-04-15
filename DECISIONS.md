@@ -862,4 +862,38 @@ Remove timeline entirely from `output/prototype-v2.html`:
 
 ---
 
-*Last updated: 2026-04-15 | 24 decisions recorded*
+## ADR-025 — Light-Mode UI Promoted to Primary; Dark OLED Retired
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Astha (PM)
+
+**Context:**
+Two UIs existed simultaneously: `web/index.html` (dark OLED swipe-card) and
+`output/prototype-v2.html` (light-mode swipe-card, iterated on throughout the session).
+Having two UIs created ambiguity about which was canonical and required maintaining
+two separate code paths.
+
+**Decision:**
+- `output/prototype-v2.html` replaces `web/index.html` as the one and only UI
+- `output/prototype-v2.html` deleted (its content IS `web/index.html` now)
+- `GET /prototype` route removed from `app/main.py`
+- `/output` StaticFiles mount removed from `app/main.py`
+- Page `<title>` updated from "News That Matters — Prototype v2" → "News That Matters"
+- Tab switch ("What Happened" / "Why It Matters →") explicitly **kept** per PM decision
+
+**Rationale:**
+- Light mode is more legible, more conventional for a news product
+- Swipe + tab interaction tests better than the dark OLED scroll approach
+- One UI = one codebase = zero confusion about what's canonical
+
+**Consequences:**
+- `GET /` is the only frontend route
+- Dark OLED design is gone — not archived, not branched. Roll forward.
+- No `/prototype` route exists anymore — requests to it return 404
+
+**Superseded by:** —
+
+---
+
+*Last updated: 2026-04-15 | 25 decisions recorded*
