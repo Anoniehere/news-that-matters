@@ -2,8 +2,10 @@
 app/main.py — FastAPI application for News That Matters.
 
 Endpoints:
-    GET /brief         — returns the current enriched brief (< 500ms cache hit)
-    GET /brief/status  — pipeline health: last run time, is_stale, next run
+    GET /             — serves the light-mode swipe-card UI (web/index.html)
+    GET /brief        — returns the current enriched brief (< 500ms cache hit)
+    GET /brief/status — pipeline health: last run time, is_stale, next run
+    GET /health       — liveness probe
 
 On startup:
     1. init_db()                   — create tables if missing
@@ -94,23 +96,16 @@ app.add_middleware(
 # Project root — one level above app/
 _ROOT = Path(__file__).parent.parent
 
-# Serve the frontend and prototype over HTTP (eliminates file:// CORS edge-cases)
-app.mount("/web",    StaticFiles(directory=str(_ROOT / "web")),    name="web")
-app.mount("/output", StaticFiles(directory=str(_ROOT / "output")), name="output")
+# Serve the frontend over HTTP (eliminates file:// CORS edge-cases)
+app.mount("/web", StaticFiles(directory=str(_ROOT / "web")), name="web")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/", include_in_schema=False)
 def serve_ui() -> FileResponse:
-    """Serve the main swipe-card UI."""
+    """Serve the light-mode swipe-card UI."""
     return FileResponse(str(_ROOT / "web" / "index.html"))
-
-
-@app.get("/prototype", include_in_schema=False)
-def serve_prototype() -> FileResponse:
-    """Serve the light-mode prototype over HTTP (not file://)."""
-    return FileResponse(str(_ROOT / "output" / "prototype-v2.html"))
 
 @app.get("/brief")
 def get_brief() -> dict[str, Any]:

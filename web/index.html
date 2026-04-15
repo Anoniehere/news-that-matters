@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>News That Matters — Prototype v2</title>
+  <title>News That Matters</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
@@ -57,63 +57,95 @@
       transform-origin:center 110%;
       will-change:transform,opacity;
       user-select:none;-webkit-user-select:none}
+    .swipe-card.hero-card{
+      box-shadow:0 2px 8px rgba(124,58,237,.12),0 12px 32px rgba(0,0,0,.1),0 32px 64px rgba(0,0,0,.08)}
     .swipe-card.is-behind{pointer-events:none}
     .swipe-card.is-hidden{pointer-events:none;opacity:0!important;transform:scale(.88)!important}
 
-    /* ── Card hero panel ── */
-    .card-hero{flex-shrink:0;height:44%;padding:16px 18px 14px;
-      display:flex;flex-direction:column;justify-content:space-between;
-      position:relative;overflow:hidden}
-    .card-hero::after{content:'';position:absolute;inset:0;
-      background:linear-gradient(180deg,rgba(0,0,0,.04) 0%,rgba(0,0,0,.28) 100%);
-      pointer-events:none}
-    .hero-top{display:flex;justify-content:space-between;align-items:flex-start;
-      position:relative;z-index:1}
-    .sev-badge{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-      padding:4px 11px;border-radius:99px;
-      background:rgba(255,255,255,.22);backdrop-filter:blur(8px);
-      color:#fff;border:1px solid rgba(255,255,255,.3)}
-    .card-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:900;
-      color:rgba(255,255,255,.45);letter-spacing:.02em}
-    .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:900;
-      line-height:1.2;letter-spacing:-.03em;color:#fff;
-      text-shadow:0 1px 6px rgba(0,0,0,.18);
-      margin:0;flex:1;display:flex;align-items:center;
-      padding:10px 0 8px;position:relative;z-index:1;
-      overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-    .hero-bottom{display:flex;align-items:center;gap:8px;
-      position:relative;z-index:1}
-    .hero-flags{display:flex;gap:2px;font-size:17px;line-height:1}
-    .region-pill{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-      padding:3px 9px;border-radius:99px;
-      background:rgba(255,255,255,.18);backdrop-filter:blur(8px);
-      color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.22)}
+    /* ── Card strip ── */
+    .card-strip{height:5px;width:100%;flex-shrink:0}
 
     /* ── Card body ── */
-    .card-body{flex:1;display:flex;flex-direction:column;
-      padding:14px 18px 12px;overflow:hidden;min-height:0}
+    .card-body{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-height:0}
+
+    /* ── Rank watermark ── */
+    .rank-wm{position:absolute;top:-4px;right:12px;
+      font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
+      font-size:80px;line-height:1;color:rgba(0,0,0,.035);
+      user-select:none;pointer-events:none;letter-spacing:-.04em}
+
+    /* ── Hero badge ── */
+    .hero-badge{display:inline-flex;align-items:center;gap:5px;
+      padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;
+      letter-spacing:.07em;text-transform:uppercase;
+      background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(192,38,211,.08));
+      border:1px solid rgba(124,58,237,.22);color:var(--accent);margin-bottom:8px}
+
+    /* ── Flags FEAT 4 ── */
+    .flags-row{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-shrink:0}
+    .flags-cluster{display:flex;gap:2px;font-size:20px;line-height:1}
+    .region-badge{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+      padding:2px 8px;border-radius:99px;background:rgba(0,0,0,.05);
+      border:1px solid rgba(0,0,0,.07);color:var(--muted)}
+
+    /* ── Impact gauge FEAT 5 ── */
+    .gauge-wrap{margin-bottom:10px;flex-shrink:0}
+    .gauge-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+    .gauge-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .gauge-right{display:flex;align-items:center;gap:5px}
+    .gauge-level{font-size:11px;font-weight:700;letter-spacing:.04em}
+    .gauge-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800}
+    .gauge-track{height:7px;border-radius:99px;background:#e5e7eb;overflow:hidden}
+    .gauge-fill{height:100%;border-radius:99px;width:0%;transition:width 1.1s cubic-bezier(.4,0,.2,1)}
+
+    /* ── Heading ── */
+    .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:900;
+      line-height:1.25;letter-spacing:-.025em;color:#111827;margin-bottom:10px;flex-shrink:0}
+
+    /* ── Tabs FEAT 2 ── */
+    .tab-bar{display:flex;gap:3px;background:#f3f4f6;border-radius:12px;
+      padding:3px;margin-bottom:10px;flex-shrink:0}
+    .tab-btn{flex:1;padding:6px 4px;border-radius:9px;border:none;background:transparent;
+      font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s ease;
+      white-space:nowrap;touch-action:manipulation}
+    .tab-btn.active{background:#fff;color:var(--text);
+      box-shadow:0 1px 4px rgba(0,0,0,.1),0 0 0 .5px rgba(0,0,0,.06)}
+
+    /* ── Tab content — grid-stacked for zero layout shift FEAT 2 ── */
+    .tab-content{display:grid;grid-template-columns:1fr;flex:1;min-height:0;overflow:hidden}
+    .tab-pane{grid-row:1;grid-column:1;overflow-y:auto;overflow-x:hidden;
+      opacity:0;pointer-events:none;visibility:hidden;
+      transform:translateX(28px);
+      transition:opacity .26s ease,transform .26s cubic-bezier(.4,0,.2,1)}
+    .tab-pane::-webkit-scrollbar{display:none}
+    .tab-pane.active{opacity:1;pointer-events:auto;visibility:visible;transform:translateX(0);
+      transition:opacity .28s ease,transform .28s cubic-bezier(.4,0,.2,1)}
 
     /* ── Body text ── */
-    .body-text{font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:12px;flex-shrink:0}
+    .body-text{font-size:12.5px;color:var(--sub);line-height:1.65;margin-bottom:10px}
+    .matters-box{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.16);
+      border-radius:14px;padding:11px 13px;margin-bottom:10px}
+    .matters-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:5px}
 
-    /* ── Impact callout ── */
-    .matters-box{border-left:3px solid;border-radius:0 10px 10px 0;
-      background:#f9fafb;padding:9px 13px;margin-bottom:12px;flex-shrink:0}
-    .matters-lbl{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-      color:var(--accent);margin-bottom:3px}
-    .matters-body{font-size:13px;font-weight:600;color:#1e1b4b;line-height:1.5;margin:0}
+    /* ── Timeline FEAT 3 ── */
+    
+    @keyframes nowPulse{0%,100%{box-shadow:0 0 0 3px rgba(124,58,237,.15)}50%{box-shadow:0 0 0 5px rgba(124,58,237,.05)}}
+    
+
+    /* ── Sector chips ── */
+    .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;flex-shrink:0}
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+      border-radius:99px;font-size:10.5px;font-weight:600;white-space:nowrap}
 
     /* ── Card footer ── */
     .card-footer{display:flex;align-items:center;justify-content:space-between;
-      margin-top:auto;padding-top:10px;flex-shrink:0}
-    .chips-row{display:flex;gap:4px;flex-wrap:wrap}
-    .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;
-      border-radius:99px;font-size:10px;font-weight:600;white-space:nowrap}
+      padding-top:10px;margin-top:10px;border-top:1px solid #f3f4f6;flex-shrink:0}
     .sources-btn{display:inline-flex;align-items:center;gap:5px;
       padding:6px 14px;border-radius:10px;border:1px solid rgba(124,58,237,.2);
-      background:rgba(124,58,237,.06);font-size:11px;font-weight:700;
+      background:rgba(124,58,237,.06);font-size:11.5px;font-weight:600;
       color:var(--accent);cursor:pointer;touch-action:manipulation;
-      transition:background .15s ease;white-space:nowrap;flex-shrink:0}
+      transition:background .15s ease}
     .sources-btn:active{background:rgba(124,58,237,.12)}
 
     /* ── Swipe hint arrows ── */
@@ -166,6 +198,11 @@
     @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}50%{box-shadow:0 0 0 5px rgba(124,58,237,0)}}
     .live-dot{width:6px;height:6px;border-radius:99px;background:var(--accent);animation:glowPulse 2s infinite}
 
+    /* ── Feature tag ── */
+    .ftag{position:absolute;top:9px;left:9px;z-index:20;
+      background:rgba(245,158,11,.9);color:#000;font-size:9px;font-weight:800;
+      letter-spacing:.05em;padding:2px 7px;border-radius:99px;text-transform:uppercase;pointer-events:none}
+
     /* ── Loading / Error states ── */
     .loading-state,.error-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center;padding:20px}
     .spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite}
@@ -209,14 +246,6 @@
     </div>
     <!-- Progress dots -->
     <div class="prog-dots" id="prog-dots"></div>
-    <!-- Quota/refresh status line: only visible when quota exhausted or stale -->
-    <div id="refresh-status" style="
-      display:none;
-      font-size:10px;
-      color:var(--muted);
-      margin-top:4px;
-      letter-spacing:.02em;
-    "></div>
   </header>
 
   <!-- Card stack -->
@@ -273,40 +302,45 @@
 let EVENTS=[
   {rank:1,score:.70,
    heading:"US-Iran Ceasefire Deal Weakens Dollar, Shifts Global Risk Appetite",
-   summary:"A US-Iran ceasefire reported in early April 2026 triggered the dollar's worst weekly drop since January. Investors rotated sharply into risk assets as the geopolitical premium unwound.",
-   why:"Dollar weakness inflates international operating costs for US tech firms and signals a risk-on environment that accelerates emerging-market VC deployment.",
+   summary:"A ceasefire deal between the United States and Iran was reported in early April 2026, marking a significant de-escalation of geopolitical tensions. This immediately led to a substantial weakening of the U.S. Dollar — its worst weekly drop since January. Investors responded by rotating capital toward risk assets globally. The development signals a potential reconfiguration of geopolitical risk premiums in markets.",
+   why:"For Silicon Valley professionals, this de-escalation can significantly impact global capital flows. Easing tensions may encourage greater appetite for risk in emerging markets, opening new avenues for tech investment. The weakening dollar could affect purchasing power of US tech firms operating internationally and alter currency hedging strategies. Watch for shifts in venture capital appetite and cross-border M&A in coming weeks.",
+
    flags:["🇺🇸","🇮🇷"],region:"Middle East",
    sectors:[{n:"Finance",e:"💰"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"Dollar Plummets: Worst Weekly Drop Since January After US-Iran Deal",s:"CryptoRank",u:"#"},{t:"US Dollar Falls as Iran Ceasefire Hopes Spark Flight to Risk Assets",s:"CryptoRank",u:"#"},{t:"Australian Dollar Drops as US-Iran Ceasefire Hopes Evaporate",s:"CryptoRank",u:"#"}],
    grads:["#7c3aed","#a855f7","#c026d3"]},
   {rank:2,score:.5547,
    heading:"US-Iran Ceasefire Talks Begin in Islamabad Amid Critical Stakes",
-   summary:"US-Iran ceasefire negotiations opened in Islamabad on April 11, 2026, with Pakistan mediating for the first time. A 10-point proposal is on the table — failure restarts sanctions escalation immediately.",
-   why:"A breakdown reinstates full energy sanctions, spiking data center power costs and tightening AI chip export controls to Gulf markets within weeks.",
+   summary:"Historic ceasefire negotiations between the US and Iran commenced in Islamabad on April 11, 2026. The talks hinge on a final 10-point proposal addressing key disputes. Pakistan's role as host signals a shift toward multipolar diplomatic mediation. Both sides appear willing to engage, though significant sticking points remain.",
+   why:"Geopolitical stability in the Middle East directly influences global energy markets, impacting operational costs for data centers and tech manufacturing. A successful ceasefire could ease regional tensions and reduce supply chain disruption risk. Silicon Valley firms with exposure to Gulf markets or dependent on stable energy prices should monitor outcomes closely. Export control and sanctions policy may shift in response to any deal.",
+
    flags:["🇺🇸","🇮🇷","🇵🇰"],region:"South Asia",
    sectors:[{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"},{n:"Defence",e:"🛡️"},{n:"Finance",e:"💰"}],
    sources:[{t:"Critical Ceasefire Hinges on Final 10-Point Proposal",s:"CryptoRank",u:"#"},{t:"Historic Islamabad Negotiations Begin April 11 with Critical Stakes",s:"CryptoRank",u:"#"}],
    grads:["#0ea5e9","#06b6d4","#0d9488"]},
   {rank:3,score:.28,
-   heading:"Middle East Proxy Network Enters Open Coordination Phase",
-   summary:"Iran, Hezbollah, and Houthi factions are openly coordinating for the first time, removing the plausible deniability layer that had constrained escalation. The ceasefire window is buying diplomatic time but proxy realignments will outlast any formal agreement.",
-   why:"Red Sea shipping disruption is now a structural risk, not an episodic one — raising component lead times and freight costs for hardware-dependent SV firms.",
+   heading:"Middle East Geopolitical Conundrum and Shifting Power Dynamics",
+   summary:"The Middle East remains a complex arena of proxies and strategic levers, with no single actor holding decisive control. Long-standing rivalries continue to evolve as external powers reposition. The ceasefire window is creating unexpected diplomatic space. Analysts warn that proxy realignments could outlast any formal agreement.",
+   why:"Persistent instability creates ongoing supply chain risk for hardware manufacturing and energy-dependent data infrastructure. Increased regional instability could disrupt shipping lanes critical to tech component sourcing. Companies with manufacturing in Turkey, UAE, or Saudi Arabia face elevated operational risk. Monitor for secondary sanctions that could restrict tech exports to the region.",
+
    flags:["🌍"],region:"Middle East",
    sectors:[{n:"Defence",e:"🛡️"},{n:"Energy",e:"⚡"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"}],
    sources:[{t:"Proxies and levers: The Middle East conundrum",s:"Times of India",u:"#"}],
    grads:["#f43f5e","#ec4899","#a855f7"]},
   {rank:4,score:.28,
-   heading:"India Positions as Non-Aligned Broker Between Gulf and Iran",
-   summary:"India deepened Gulf ties while keeping Iran channels open during the West Asia conflict, with PM Modi visiting Abu Dhabi and Tehran in the same week in February 2026. No other major power has executed dual Gulf-Iran diplomacy during an active regional conflict.",
-   why:"Stable India-Gulf relations protect semiconductor and critical mineral corridors that underpin Silicon Valley's hardware supply chain.",
+   heading:"India's West Asia Diplomacy Balances Gulf Ties and Iran Engagement",
+   summary:"India successfully navigated the War in West Asia by deepening Gulf relationships while keeping Iran diplomatic channels open. This balancing act reflects India's broader strategy of non-alignment in great-power competition. The approach has strengthened India's role as an emerging multipolar broker. Analysts view this as a model for middle-power diplomacy in a fragmented world.",
+   why:"India's diplomatic agility has direct implications for Silicon Valley's supply chain and talent pipeline. Stable India-Gulf relations protect critical semiconductor and mineral trade routes. India's growing clout makes it an increasingly important partner for US tech firms expanding into South Asia. A stable India-Iran channel reduces risk of tech export disruptions through the region.",
+
    flags:["🇮🇳","🇦🇪","🇮🇷"],region:"South Asia",
    sectors:[{n:"Technology",e:"💻"},{n:"Manufacturing",e:"🏭"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"How India navigated the War in West Asia, deepening Gulf ties while keeping Iran channel open",s:"Punjab Kesari",u:"#"}],
    grads:["#f59e0b","#f97316","#ef4444"]},
   {rank:5,score:.28,
-   heading:"China Locks In Tariff-Free Access Across 53 African Nations",
-   summary:"China granted full tariff-free access to 53 African nations effective April 12, 2026, as the centrepiece of its FOCAC implementation roadmap. The move directly targets cobalt and lithium supply chains, countering US and EU infrastructure plays on the continent.",
-   why:"Chinese consolidation of DRC and Zambia mineral output tightens the supply of EV battery inputs and advanced chip materials — expect US USTR counter-policy within 60 days.",
+   heading:"China Expands Tariff-Free Trade with 53 African Nations",
+   summary:"China announced full tariff-free measures for 53 African countries with diplomatic ties, effective April 12, 2026. The policy deepens China's economic footprint across the continent. It directly counters US and European infrastructure investment initiatives in Africa. Critical mineral supply chains — cobalt and lithium — are central to the move.",
+   why:"This reshapes the critical minerals supply chain that Silicon Valley's hardware ecosystem depends on. Chinese control of cobalt and lithium sourcing from the DRC and Zambia creates new pricing and access risks. Tech firms reliant on African critical minerals for batteries and chips should reassess supplier diversification strategies. Expect US counter-investment policy responses within 60 days.",
+
    flags:["🇨🇳","🌍"],region:"Africa",
    sectors:[{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Manufacturing",e:"🏭"},{n:"Finance",e:"💰"}],
    sources:[{t:"China implements full tariff-free measures on 53 African countries with diplomatic ties",s:"매일경제",u:"#"}],
@@ -328,35 +362,52 @@ const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 
 // ── Build card HTML ───────────────────────────────────────────────────────────
 function buildCard(ev,idx){
-  const g=gc(ev.score);
-  const chips=ev.sectors.slice(0,2).map(s=>{
-    const c=sc(s.n);
-    return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;
-  }).join("");
-  const grad=`linear-gradient(135deg,${ev.grads.join(",")})`;
+  const g=gc(ev.score),pct=Math.round(ev.score*100),val=(ev.score*10).toFixed(1);
+  const id=`c${ev.rank}`;
+  const chips=ev.sectors.map(s=>{const c=sc(s.n);return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;}).join("");
+
   const isHero=ev.rank===1;
-  return`<div class="swipe-card" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
-    <div class="card-hero" style="background:${grad}">
-      <div class="hero-top">
-        <span class="sev-badge">${isHero?"⚡ "+g.l:g.l}</span>
-        <span class="card-num">#${String(ev.rank).padStart(2,"0")}</span>
+  return`<div class="swipe-card${isHero?" hero-card":""}" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
+    ${idx===0?`<div class="ftag">Swipe left →</div>`:""}
+    <div class="card-strip" style="background:linear-gradient(90deg,${ev.grads.join(",")})"></div>
+    <div class="rank-wm">${String(ev.rank).padStart(2,"0")}</div>
+    <div class="card-body">
+      ${isHero?`<div class="hero-badge">⚡ Signal of the day</div>`:""}
+      <div class="flags-row">
+        <div class="flags-cluster">${ev.flags.map(f=>`<span>${f}</span>`).join("")}</div>
+        <span class="region-badge">${esc(ev.region)}</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-meta">
+          <span class="gauge-lbl">Impact Level</span>
+          <div class="gauge-right">
+            <span class="gauge-level" style="color:${g.c}">${g.l}</span>
+            <span class="gauge-val" style="color:${g.c}">${val}<span style="font-size:9px;opacity:.5;font-family:Inter,sans-serif">/10</span></span>
+          </div>
+        </div>
+        <div class="gauge-track"><div class="gauge-fill" data-pct="${pct}" style="background:linear-gradient(90deg,${g.c}88,${g.c})"></div></div>
       </div>
       <h2 class="card-heading">${esc(ev.heading)}</h2>
-      <div class="hero-bottom">
-        <div class="hero-flags">${ev.flags.map(f=>`<span>${f}</span>`).join("")}</div>
-        <span class="region-pill">${esc(ev.region)}</span>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('${id}','happened',this,0)">What Happened</button>
+        <button class="tab-btn"        onclick="switchTab('${id}','matters', this,1)">Why It Matters →</button>
       </div>
-    </div>
-    <div class="card-body">
-      <p class="body-text">${esc(ev.summary)}</p>
-      <div class="matters-box" style="border-color:${g.c}">
-        <p class="matters-lbl">For you</p>
-        <p class="matters-body">${esc(ev.why)}</p>
+      <div class="tab-content" id="${id}-wrap">
+        <div id="${id}-happened" class="tab-pane active">
+          <p class="body-text">${esc(ev.summary)}</p>
+        </div>
+        <div id="${id}-matters" class="tab-pane">
+          <div class="matters-box">
+            <p class="matters-lbl">Why it matters to you</p>
+            <p class="body-text" style="color:#374151;margin-bottom:0">${esc(ev.why)}</p>
+          </div>
+        </div>
       </div>
+      <div class="chips-row">${chips}</div>
       <div class="card-footer">
-        <div class="chips-row">${chips}</div>
+        <span style="font-size:11px;color:var(--muted)">Rank #${ev.rank} · ${Math.round(ev.score*100)}% trend</span>
         <button class="sources-btn" onclick="openSheet(${idx})">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           ${ev.sources.length} Source${ev.sources.length!==1?"s":""}
         </button>
       </div>
@@ -364,7 +415,28 @@ function buildCard(ev,idx){
   </div>`;
 }
 
-// ── Swipe engine ─────────────────────────────────────────────────────────────────────────────
+// ── Tab switch with directional animation ─────────────────────────────────────
+const _tabDir={};
+function switchTab(cid,tab,btn,idx){
+  const prev=_tabDir[cid]??0,dir=idx>prev?1:-1;
+  _tabDir[cid]=idx;
+  const wrap=document.getElementById(`${cid}-wrap`);
+  const incoming=document.getElementById(`${cid}-${tab}`);
+  const outgoing=wrap.querySelector(".tab-pane.active");
+  if(!outgoing||outgoing===incoming)return;
+  incoming.style.cssText="transform:translateX("+(dir*30)+"px);opacity:0;visibility:visible;pointer-events:none;transition:none";
+  incoming.getBoundingClientRect();
+  outgoing.style.cssText="transition:opacity .22s ease,transform .22s cubic-bezier(.4,0,.2,1);transform:translateX("+(-dir*30)+"px);opacity:0";
+  incoming.style.cssText="transition:opacity .28s ease,transform .28s cubic-bezier(.4,0,.2,1);transform:translateX(0);opacity:1;visibility:visible;pointer-events:auto";
+  setTimeout(()=>{
+    outgoing.classList.remove("active");outgoing.style.cssText="";
+    incoming.classList.add("active");incoming.style.cssText="";
+  },280);
+  btn.closest(".tab-bar").querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+// ── Swipe engine ─────────────────────────────────────────────────────────────
 let curr=0,dragX=0,dragging=false,swiping=false,startX=0,startY=0,startTime=0;
 const THRESHOLD=85,cards=[];
 
@@ -420,7 +492,8 @@ function flyOff(dir){
   setTimeout(()=>{
     updateUI();
     positionAll(0);
-      },320);
+    animateGauges();
+  },320);
 }
 
 function onDown(e){
@@ -463,6 +536,12 @@ function updateUI(){
   if(hr) hr.style.opacity=curr<EVENTS.length-1?.45:0;
 }
 
+function animateGauges(){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll(".gauge-fill").forEach(el=>{el.style.width=el.dataset.pct+"%";});
+  }));
+}
+
 // ── Source sheet ──────────────────────────────────────────────────────────────
 function openSheet(idx){
   const ev=EVENTS[idx];
@@ -488,14 +567,20 @@ document.addEventListener("keydown",e=>{
 });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+let _listenersAttached = false;
+let _clockStarted      = false;
+
 function init(){
+  // Reset card index when data changes
+  curr = 0;
+
   // Build progress dots
   document.getElementById("prog-dots").innerHTML=
     EVENTS.map((_,i)=>`<div class="prog-dot${i===0?" active":""}"></div>`).join("");
 
   // Build all cards
   const stack=document.getElementById("card-stack");
-  // Restore hint arrows — showLoading() replaces innerHTML and nukes them
+  // Ensure hint arrows exist (they live inside card-stack)
   if(!document.getElementById("hint-l")){
     stack.insertAdjacentHTML("afterbegin",
       `<div class="swipe-hint hint-left" id="hint-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></div>`+
@@ -510,23 +595,28 @@ function init(){
   });
 
   positionAll(0);
+  animateGauges();
   updateUI();
 
-  // Attach swipe listeners to stack
-  stack.addEventListener("mousedown",onDown);
-  stack.addEventListener("touchstart",onDown,{passive:true});
-  window.addEventListener("mousemove",onMove);
-  window.addEventListener("touchmove",onMove,{passive:false});
-  window.addEventListener("mouseup",onUp);
-  window.addEventListener("touchend",onUp);
+  // Attach swipe + keyboard listeners exactly once
+  if (!_listenersAttached) {
+    stack.addEventListener("mousedown",onDown);
+    stack.addEventListener("touchstart",onDown,{passive:true});
+    window.addEventListener("mousemove",onMove);
+    window.addEventListener("touchmove",onMove,{passive:false});
+    window.addEventListener("mouseup",onUp);
+    window.addEventListener("touchend",onUp);
+    _listenersAttached = true;
+  }
 
-  // Clock
+  // Clock — starts once, keeps ticking across reinits
   const tick=()=>{const n=new Date();document.getElementById("sb-time").textContent=n.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}).replace(/ (AM|PM)/,"");};
-  tick();setInterval(tick,30000);
+  tick();
+  if (!_clockStarted) { setInterval(tick,30000); _clockStarted = true; }
 }
 
 // ── Live data wiring ────────────────────────────────────────────────────────
-const API = 'http://127.0.0.1:8001';
+const API = '';  // same origin — served via FastAPI at /prototype
 
 const RANK_GRADS = [
   ['#7c3aed','#a855f7','#c026d3'],
@@ -595,6 +685,19 @@ function detectRegion(text) {
 function cleanTitle(t) {
   return t.replace(/ - [^-]+$/, '').replace(/ \| .+$/, '').trim();
 }
+
+/**
+ * Trim `text` so it contains the same number of complete sentences as `refText`.
+ * Splits on . ! ? followed by whitespace or end-of-string — never cuts mid-sentence.
+ */
+function trimToMatchSentences(text, refText) {
+  const toSentences = t =>
+    t.match(/[^.!?]*[.!?]+(?=\s|$)/g) || [t.trim()];
+  const targetCount = toSentences(refText).length;
+  const sentences   = toSentences(text);
+  return sentences.slice(0, targetCount).join(' ').trim();
+}
+
 function adaptBrief(apiData) {
   return apiData.brief.events.map(ev => {
     const text = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
@@ -603,7 +706,7 @@ function adaptBrief(apiData) {
       score:   ev.trend_score,
       heading: ev.event_heading,
       summary: ev.summary,
-      why:     ev.why_it_matters,
+      why:     trimToMatchSentences(ev.why_it_matters, ev.summary),
       flags:   detectFlags(text),
       region:  detectRegion(text),
       sectors: ev.sectors_impacted.slice(0,4).map(s => ({n:s.name, e:sectorEmoji(s.name)})),
@@ -613,62 +716,81 @@ function adaptBrief(apiData) {
   });
 }
 
-function showLoading() {
-  document.getElementById('card-stack').innerHTML =
-    `<div class="loading-state"><div class="spinner"></div><p>Loading live brief…</p></div>`;
-  document.getElementById('prog-dots').innerHTML = '';
+/**
+ * Show a subtle top banner — never wipes the card stack.
+ * type: 'info' | 'warn' | 'stale'
+ */
+function showBanner(text, type = 'info') {
+  const bar = document.getElementById('stale-bar');
+  const age = document.getElementById('stale-age');
+  if (!bar) return;
+  const colors = {
+    info:  { bg: 'rgba(99,102,241,.08)',  border: 'rgba(99,102,241,.2)',  text: '#4338ca' },
+    warn:  { bg: 'rgba(245,158,11,.08)', border: 'rgba(245,158,11,.2)', text: '#92400e' },
+    stale: { bg: 'rgba(245,158,11,.08)', border: 'rgba(245,158,11,.2)', text: '#92400e' },
+  };
+  const c = colors[type] || colors.info;
+  bar.style.background    = c.bg;
+  bar.style.borderBottom  = `1px solid ${c.border}`;
+  bar.style.color         = c.text;
+  if (age) age.textContent = '';
+  bar.innerHTML = text;
+  bar.style.display = 'block';
 }
 
-function showError(msg) {
-  document.getElementById('card-stack').innerHTML =
-    `<div class="error-state">
-      <h3>Couldn't load brief</h3>
-      <p>${esc(msg)}</p>
-      <button class="retry-btn" onclick="fetchAndInit()">↺ Retry</button>
-    </div>`;
-}
-
+/**
+ * Fetch live brief from the API.
+ * ALWAYS falls back to the built-in static EVENTS if the API is
+ * unavailable, returning an error, or timing out.
+ * Customer experience NEVER breaks — there's always something to swipe.
+ */
 async function fetchAndInit() {
-  showLoading();
+  let usedFallback = false;
   try {
-    const res = await fetch(API + '/brief');
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    // 3-second hard timeout — static data already visible, don't keep re-init waiting
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+
+    const res = await fetch(API + '/brief', { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     const data = await res.json();
-    EVENTS = adaptBrief(data);
-    const meta = data.meta || {};
+    const live = adaptBrief(data);
 
-    // Stale-data banner (existing)
-    if (meta.is_stale) {
-      const mins = Math.round(meta.age_minutes || 0);
-      const label = mins >= 90 ? `${Math.round(mins/60)}h` : `${mins}m`;
-      const bar = document.getElementById('stale-bar');
-      const age = document.getElementById('stale-age');
-      if (bar && age) { age.textContent = label; bar.style.display = 'block'; }
-    }
+    if (live && live.length > 0) {
+      EVENTS = live;  // replace static demo data with live data
 
-    // Quota / refresh status line (new)
-    const statusEl = document.getElementById('refresh-status');
-    if (statusEl) {
-      const parts = [];
-      if (meta.last_refreshed_at) {
-        const ago = _relativeTime(new Date(meta.last_refreshed_at));
-        parts.push(`Updated ${ago}`);
-      }
+      const meta = data.meta || {};
       if (meta.quota_exhausted && meta.next_refresh_at) {
         const t = new Date(meta.next_refresh_at);
-        const hhmm = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
-        parts.push(`\u2022 Refreshes ~${hhmm}`);
+        const hhmm = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+        const ago  = meta.last_refreshed_at ? _relativeTime(new Date(meta.last_refreshed_at)) : null;
+        showBanner(
+          `⏱ ${ago ? `Updated ${ago} · ` : ''}Refreshes ~${hhmm}`,
+          'stale'
+        );
+      } else if (meta.is_stale) {
+        const mins  = Math.round(meta.age_minutes || 0);
+        const label = mins >= 90 ? `${Math.round(mins / 60)}h` : `${mins}m`;
+        showBanner(`⏱ Data is ${label} old · refreshing hourly`, 'stale');
       }
-      if (parts.length) {
-        statusEl.textContent = parts.join(' ');
-        statusEl.style.display = 'block';
-      }
+    } else {
+      // API responded but returned empty events — keep static data
+      usedFallback = true;
     }
-
-    init();
-  } catch(e) {
-    showError(e.message);
+  } catch (e) {
+    // Network error, timeout, CORS, or bad JSON — all handled silently
+    console.warn('[NTM] API unavailable, using built-in brief:', e.message);
+    usedFallback = true;
   }
+
+  if (usedFallback) {
+    showBanner('📡 Showing sample brief &nbsp;·&nbsp; <a href="javascript:fetchAndInit()" style="color:inherit;text-decoration:underline">Retry</a>', 'info');
+  }
+
+  init();  // always runs — live data or static fallback, never a blank screen
 }
 
 /** Returns a human-readable relative-time string (e.g. "3h ago", "just now"). */
@@ -682,7 +804,10 @@ function _relativeTime(date) {
   return `${Math.round(h / 24)}d ago`;
 }
 
-document.addEventListener('DOMContentLoaded', fetchAndInit);
+document.addEventListener('DOMContentLoaded', () => {
+  init();          // render static built-in data immediately — no spinner, instant content
+  fetchAndInit();  // silently fetch live data in background and upgrade if available
+});
 </script>
 </body>
 </html>
