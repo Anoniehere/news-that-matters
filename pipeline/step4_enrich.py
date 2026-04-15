@@ -2,7 +2,7 @@
 pipeline/step4_enrich.py — M3: LLM Enrichment
 
 For each of the top-5 trend-scored clusters, calls an LLM to produce:
-event_heading, summary, why_it_matters, sectors_impacted, timeline_context.
+event_heading, summary, why_it_matters, sectors_impacted.
 
 Provider selection (LLM_PROVIDER env var):
   gemini  — Google Gemini Flash (default; works on Walmart network via googleapis.com)
@@ -133,34 +133,25 @@ STRICT RULES you must follow:
    funding (US-China investment restrictions), talent/visa policy, data sovereignty,
    satellite/telecom competition, or regulatory risk.
 5. Return ONLY valid JSON matching the schema below. No extra commentary.
-6. LENGTH GUARDRAIL:
-   - "summary":        minimum 3 sentences, maximum 5 sentences.
-     Cover: what happened, who is involved, when, and the immediate consequence.
-     Every sentence must be complete. Do NOT truncate mid-thought.
-   - "why_it_matters": minimum 3 sentences, maximum 5 sentences.
-     Cover: direct impact on Silicon Valley professionals, second-order effects,
-     what to watch for next, and one concrete implication for tech/startup ecosystem.
-     Every sentence must be complete. Do NOT truncate mid-thought.
-   - "timeline_context": exactly 2 sentences.
-     Sentence 1 — ORIGIN: State specifically when and how this story started.
-       Use a concrete date, month, or named event (e.g. "This dispute escalated in
-       March 2026 when...", "Tensions began after the January G7 summit...").
-       Do NOT write "recently", "ongoing", "over the past few months", or any
-       vague timeframe. A date or named trigger is required.
-     Sentence 2 — WATCHPOINT: Name one specific, concrete thing to watch for next.
-       Examples: a vote, a deadline, a summit, a court ruling, a trade negotiation
-       round, a sanctions review date, a central bank meeting.
-       Do NOT write "future developments", "remains to be seen", "is evolving",
-       "will depend on", "the situation may", or any hedge that provides no
-       actionable information. A named event or deadline is required.
+6. LENGTH GUARDRAILS — obey these strictly:
+   - "summary": EXACTLY 2 sentences. Maximum 40 words total.
+     Sentence 1: who did what (the core event).
+     Sentence 2: the single most important immediate consequence.
+     Cut every word that does not add information. Be precise, not comprehensive.
+   - "why_it_matters": EXACTLY 1 sentence. Maximum 25 words.
+     State ONE concrete, specific implication for a Silicon Valley professional.
+     Begin with the impact or action — not with context or background.
+     Examples of good form:
+       "AI chip export controls tighten further if sanctions re-escalate, freezing orders already in the BIS pipeline."
+       "Dollar weakness inflates dollar-denominated cloud and hardware costs for non-US tech firms by roughly 3–5%."
+     Do NOT hedge. Do NOT write "may", "could potentially", or "might". Name the specific impact.
 
 OUTPUT JSON SCHEMA:
 {
-  "event_heading":     "<string — the geopolitical thesis in 10-15 words>",
-  "summary":           "<string — 3-5 complete sentences. What happened, who, when, consequence.>",
-  "why_it_matters":    "<string — 3-5 complete sentences, Silicon Valley geo-political lens.>",
-  "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
-  "timeline_context":  "<2 sentences: sentence 1 = specific origin date/trigger, sentence 2 = named next watchpoint>"
+  "event_heading":    "<string — the geopolitical thesis in 10-15 words>",
+  "summary":          "<EXACTLY 2 sentences, max 40 words: sentence 1 = who/what, sentence 2 = key consequence>",
+  "why_it_matters":   "<EXACTLY 1 sentence, max 25 words: one concrete SV-professional implication>",
+  "sectors_impacted": [{"name": "<sector>", "confidence": <0.0-1.0>}]
 }
 
 Valid sector names (use ONLY these):
@@ -194,88 +185,44 @@ def _validate_llm_dict(raw: dict) -> None:
     Raise ValueError with a clear message if the LLM output is structurally wrong.
     Called before Pydantic so we get actionable error messages on retry.
     """
-    required = {"event_heading", "summary", "why_it_matters",
-                 "sectors_impacted", "timeline_context"}
+    required = {"event_heading", "summary", "why_it_matters", "sectors_impacted"}
     missing = required - raw.keys()
     if missing:
         raise ValueError(f"Missing keys: {missing}")
 
-    for field in ("event_heading", "summary", "why_it_matters", "timeline_context"):
+    for field in ("event_heading", "summary", "why_it_matters"):
         if not isinstance(raw[field], str) or not raw[field].strip():
             raise ValueError(f"'{field}' must be a non-empty string")
 
-    # Sentence-count guardrail (PRD: summary + why_it_matters → 3-5 sentences each).
-    # Count by splitting on sentence-ending punctuation followed by whitespace.
     import re as _re
     _sent_split = _re.compile(r'(?<=[.!?])\s+')
-    for field in ("summary", "why_it_matters"):
-        sentences = [s for s in _sent_split.split(raw[field].strip()) if s.strip()]
-        if len(sentences) < 3:
-            raise ValueError(
-                f"'{field}' has only {len(sentences)} sentence(s) — minimum is 3. "
-                f"LLM truncated. Retrying."
-            )
-        if len(sentences) > 5:
-            # Soft trim to 5 — preserves good content, avoids wasted retry
-            log.warning("'%s' has %d sentences — trimming to 5.", field, len(sentences))
-            raw[field] = " ".join(sentences[:5])
 
-    # timeline_context guardrails — must be specific, not filler.
-    _tl = raw["timeline_context"].strip()
-    _tl_lower = _tl.lower()
+    # summary: exactly 2 sentences — soft trim if over, hard retry if under.
+    _sum_sentences = [s for s in _sent_split.split(raw["summary"].strip()) if s.strip()]
+    if len(_sum_sentences) < 1:
+        raise ValueError("'summary' is empty. Retrying.")
+    if len(_sum_sentences) > 2:
+        log.warning("'summary' has %d sentences — trimming to 2.", len(_sum_sentences))
+        raw["summary"] = " ".join(_sum_sentences[:2])
 
-    # Must have exactly 2 sentences (origin + watchpoint).
-    _tl_sentences = [s for s in _sent_split.split(_tl) if s.strip()]
-    if len(_tl_sentences) < 2:
-        raise ValueError(
-            f"'timeline_context' has only {len(_tl_sentences)} sentence(s) — "
-            f"must have 2: one origin sentence + one watchpoint sentence. Retrying."
-        )
-    if len(_tl_sentences) > 2:
-        # Soft trim — keep only the 2 most informative sentences
-        log.warning("'timeline_context' has %d sentences — trimming to 2.", len(_tl_sentences))
-        raw["timeline_context"] = " ".join(_tl_sentences[:2])
-        _tl_lower = raw["timeline_context"].lower()
+    # why_it_matters: exactly 1 sentence — soft trim if over.
+    _why_sentences = [s for s in _sent_split.split(raw["why_it_matters"].strip()) if s.strip()]
+    if len(_why_sentences) < 1:
+        raise ValueError("'why_it_matters' is empty. Retrying.")
+    if len(_why_sentences) > 1:
+        log.warning("'why_it_matters' has %d sentences — trimming to 1.", len(_why_sentences))
+        raw["why_it_matters"] = _why_sentences[0]
 
-    # Must contain at least one temporal anchor (month name, year, or numeric date).
-    import re as _re2
-    _temporal_pattern = _re2.compile(
-        r'\b(january|february|march|april|may|june|july|august|september|october|'
-        r'november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|'
-        r'2024|2025|2026|q1|q2|q3|q4|this week|last week|monday|tuesday|'
-        r'wednesday|thursday|friday|saturday|sunday|\d{1,2}/\d{1,2}|'
-        r'yesterday|last month|next week|next month)\b',
-        _re2.IGNORECASE
-    )
-    if not _temporal_pattern.search(_tl):
-        raise ValueError(
-            "'timeline_context' lacks a specific temporal anchor (month, year, or date). "
-            "Must state when this story started with a concrete timeframe. Retrying."
-        )
+    # Word-count sanity — soft trim on summary, warn on why.
+    _sum_words = raw["summary"].split()
+    if len(_sum_words) > 45:
+        raw["summary"] = " ".join(_sum_words[:45]).rstrip(",;") + "."
+        log.warning("'summary' word count trimmed to 45.")
 
-    # Must NOT be generic filler — banned pal zero information.
-    _tl_banned = [
-        "remains to be seen",
-        "remains uncertain",
-        "future developments",
-        "will likely depend",
-        "is expected to continue",
-        "trajectory and outcome",
-        "evolving geopolitical",
-        "evolving dynamics",
-        "the situation may",
-        "ongoing tensions",
-        "ongoing critical",
-        "continues to evolve",
-        "will depend on how",
-        "the next steps involve observing",
-    ]
-    for phrase in _tl_banned:
-        if phrase in _tl_lower:
-            raise ValueError(
-                f"'timeline_context' contains banned filler phrase: '{phrase}'. "
-                f"Must name a specific origin event and a concrete watchpoint. Retrying."
-            )
+    _why_words = raw["why_it_matters"].split()
+    if len(_why_words) > 30:
+        raw["why_it_matters"] = " ".join(_why_words[:30]).rstrip(",;") + "."
+        log.warning("'why_it_matters' word count trimmed to 30.")
 
     if not isinstance(raw["sectors_impacted"], list) or len(raw["sectors_impacted"]) == 0:
         raise ValueError("sectors_impacted must be a non-empty list")
@@ -404,9 +351,7 @@ def _make_mock_event(sc: ScoredCluster) -> EnrichedEvent:
             "analysis for a Silicon Valley professional."
         ),
         sectors_impacted=[SectorImpact(name="Technology", confidence=0.9)],
-        timeline_context="Dry-run. No timeline generated.",
         source_articles=sc.cluster.articles,
-        signal_source=sc.signal_source,
     )
 
 
@@ -483,7 +428,6 @@ def enrich_clusters(
                             reverse=True,
                         )
                     ],
-                    timeline_context=raw["timeline_context"],
                     source_articles=sc.cluster.articles,
                     signal_source=sc.signal_source,
                 )
@@ -561,8 +505,6 @@ def main() -> None:
         print(f"   {ev.summary[:300]}…" if len(ev.summary) > 300 else f"   {ev.summary}")
         print(f"\n   WHY IT MATTERS")
         print(f"   {ev.why_it_matters[:300]}…" if len(ev.why_it_matters) > 300 else f"   {ev.why_it_matters}")
-        print(f"\n   TIMELINE")
-        print(f"   {ev.timeline_context}")
         print(f"\n   SOURCES ({len(arts)})")
         for a in arts:
             pub = a.published_at.strftime("%b %d")

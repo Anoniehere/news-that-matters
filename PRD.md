@@ -1,5 +1,5 @@
 # 📰 News That Matters — Product Requirements Document
-**Version:** 1.4 | **Status:** In Development | **Date:** 2026-04-14
+**Version:** 1.6 | **Status:** In Development | **Date:** 2026-04-15
 **Author:** PM Session w/ Code Puppy 🐶
 
 | Version | Date | Summary |
@@ -10,15 +10,17 @@
 | 1.3 | 2026-04-14 | Scoring overhaul shipped: 12 feeds, persona relevance replaces pytrends, §5.1 consolidated intelligence logic |
 | 1.4 | 2026-04-14 | Accuracy pass: fixed wrong eps values in §5.1, stale sector color map in §8.2, dropped pytrends/Reddit from §9/§13/§14, closed answered questions in §12 |
 | 1.5 | 2026-04-14 | Light mode promoted to primary: prototype-v2.html → web/index.html; dark OLED retired; §8.1/§8.2/§8.10/§10 updated |
+| 1.6 | 2026-04-15 | UX revamp — zero-interaction card reading: timeline removed, tabs removed, summary → 2 sentences, why_it_matters → 1 sentence, impact callout always visible; §8/§8.7/§8.11 updated |
 
 ---
 
 ## 0. TL;DR
 
 > News That Matters is a mobile app that cuts through news noise for Silicon Valley professionals.
-> Every time you open it, you see the **top 5 high-impact trending news events** — with
-> AI-generated summaries, causal explanations, and sector-impact analysis — all on the card.
-> Tap any card to dive into the source articles, sorted by recency.
+> Every time you open it, you see the **top 5 high-impact trending news events** —
+> a 2-sentence summary of what happened and a single-sentence impact statement
+> telling you exactly why it matters to your work — all visible on the card with zero taps.
+> Swipe to the next story. Tap sources to go deeper.
 > No login. No noise. Just signal.
 
 ---
@@ -234,9 +236,8 @@ This step has two sub-phases: **LLM call** then **persona recomputation**.
 **Structured output schema (Pydantic-validated):**
 ```
 event_heading      : str          ≤ 15 words — the event in one sharp line
-summary            : str          3–4 sentences — what happened, facts only
-why_it_matters     : str          3–4 sentences — framed for an SV professional
-timeline_context   : str          1–2 lines — how this fits the longer arc
+summary            : str          2 sentences max (~35 words) — who/what + key consequence
+why_it_matters     : str          1 sentence max (~20 words) — one concrete SV-professional impact
 sectors_impacted   : list[SectorImpact]   1–5 items, sorted by confidence desc
   └─ name           : str          from a validated vocabulary of 13 sectors
   └─ confidence     : float        0.0–1.0 — LLM’s certainty this sector is affected
@@ -336,9 +337,8 @@ class Event(BaseModel):
     brief_id: int             # FK → Brief
     rank: int                 # 1–5
     event_heading: str
-    summary: str
-    why_it_matters: str
-    timeline_context: str
+    summary: str                # 2 sentences, ~35 words
+    why_it_matters: str         # 1 sentence, ~20 words
     trend_score: float
     cluster_article_count: int
 
@@ -371,9 +371,8 @@ Returns the latest cached brief.
     {
       "rank": 1,
       "event_heading": "Federal AI Oversight Bill Advances in Senate",
-      "summary": "...",
-      "why_it_matters": "...",
-      "timeline_context": "Debate began 3 days ago; Senate vote expected Thursday.",
+      "summary": "2-sentence factual account of what happened and the key consequence.",
+      "why_it_matters": "Single sentence: the one concrete implication for an SV professional.",
       "trend_score": 0.94,
       "sectors_impacted": [
         { "sector": "AI / ML",    "confidence": 0.97, "reason": "..." },
@@ -897,9 +896,9 @@ Splash Screen:
 - `tests/test_hallucination_guard.py` — prompt guardrail tests
 
 **Exit Criteria:**
-- [ ] All 5 events have valid `event_heading`, `summary`, `why_it_matters`, `sectors_impacted`, `timeline_context`
+- [ ] All 5 events have valid `event_heading`, `summary`, `why_it_matters`, `sectors_impacted`
 - [ ] Pydantic validation passes without retry on ≥ 80% of runs
-- [ ] `summary` is max 4 sentences; `why_it_matters` is max 4 sentences
+- [ ] `summary` is max 2 sentences (~35 words); `why_it_matters` is exactly 1 sentence (~20 words)
 - [ ] Each event has a `trend_insight` string explaining the score breakdown
 - [ ] `sectors_impacted` has 1–5 items, sorted by confidence desc
 - [ ] No financial advice language in any output (manual + automated check)
@@ -947,7 +946,7 @@ Splash Screen:
 
 **Exit Criteria:**
 - [ ] App opens in Expo Go; home screen shows 5 event cards
-- [ ] Each card shows: heading, summary, why it matters, sector tags, trend score, article count
+- [ ] Each card shows: heading, summary, impact callout (why it matters), sector tags, trend score, article count
 - [ ] Trend bar animates on mount (600ms); correct color per score threshold
 - [ ] Sector tags render with correct color map from §8.2
 - [ ] Pull-to-refresh calls API and updates cards

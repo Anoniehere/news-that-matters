@@ -154,7 +154,7 @@ M6 next steps:
 - [ ] `models/schemas.py` — Pydantic models for all LLM output fields
 - [ ] `output/brief.json` — full enriched brief (5 events)
 - [ ] `tests/test_hallucination_guard.py` — guardrail tests
-- [ ] All 5 events have valid heading / summary / why_it_matters / sectors / timeline
+- [ ] All 5 events have valid heading / summary / why_it_matters / sectors
 - [ ] Pydantic validation passes without retry on ≥ 80% of runs
 - [ ] `summary` is 4–8 lines; `why_it_matters` is 4–8 lines
 - [ ] `sectors_impacted` has 1–5 items, sorted by confidence desc
@@ -262,11 +262,19 @@ M6 next steps:
 ```
 ► ACTIVE:  M7 — Deploy + QA. Day 9 of 10.
 
-Context (as of 2026-04-14):
+Context (as of 2026-04-15):
   M6 done. All mobile screens built. Full app works end-to-end in Expo web.
   API live on localhost:8001 (app.main:app, port 8001).
   Scoring overhauled — persona weights live, 12 feeds, partial brief safety net.
-  PRD v1.3 written with consolidated intelligence logic in §5.1.
+
+UX REVAMP shipped (2026-04-15):
+  - Timeline component: REMOVED (dots, ctx narrative, all CSS/JS)
+  - Tab switch (What Happened / Why It Matters): REMOVED — zero-interaction card
+  - summary: now 2 sentences max (~35 words); LLM prompt + validation updated
+  - why_it_matters: now 1 sentence (~20 words); always visible as callout box
+  - models/schemas.py: timeline_context field removed from EnrichedEvent
+  - pipeline/step4_enrich.py: prompt + _validate_llm_dict updated to match
+  - PRD v1.6 written with UX principles and content length guardrails updated
 
 Pipeline current state:
   - step1_fetch.py  : 12 feeds, _GEO_KEYWORDS expanded

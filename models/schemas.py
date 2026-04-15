@@ -90,10 +90,9 @@ class EnrichedEvent(BaseModel):
     trend_score: float
     trend_insight: str                     # why the score is this number (computed, not LLM)
     event_heading: str                     # ≤ 15 words — the thesis sentence
-    summary: str                           # 3-5 complete sentences, facts only, source-grounded
-    why_it_matters: str                    # 3-5 complete sentences, Silicon Valley geo-political lens
+    summary: str                           # 2 sentences max (~35 words): who, what, key consequence
+    why_it_matters: str                    # 1 sentence (~20 words): one concrete SV-professional implication
     sectors_impacted: list[SectorImpact]   # 1–5 items, sorted desc by confidence
-    timeline_context: str                  # 1–2 sentences — when + what's next
     source_articles: list[Article]         # raw cluster articles, newest first (UI caps at 3)
     signal_source: str                     # inherited from ScoredCluster.signal_source
     enriched_at: datetime = Field(default_factory=datetime.utcnow)
