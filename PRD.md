@@ -181,52 +181,66 @@ There is no product that gives you **trend signal + causal depth + sector impact
 ---
 
 #### Step 3 — SCORE (`pipeline/step3_score.py`)
-*Goal: rank clusters by objective signal strength to select the top 7 candidates for LLM enrichment.*
+*Goal: rank clusters by editorial coverage to select the top 15 candidates for the two-pass LLM scoring pipeline.*
 
-**Pre-LLM selection formula** (used only to pick which clusters go to the LLM — not the final user-facing score):
+**Pre-filter formula** (ranks by coverage breadth only — step 4 adds persona relevance):
 
 ```
-selection_score = 0.70 × repetition_score + 0.30 × feed_diversity_score
+trend_score = repetition_score
 ```
 
-> **Why not the final score?** Persona relevance requires `sectors_impacted`, which the LLM hasn’t produced yet. Step 3 is a best-available proxy; Step 4b computes the true final score.
+> **Why rep-only?** Persona relevance requires `sectors_impacted`, which the LLM hasn’t produced yet. Step 3 uses the single cheapest signal (how widely is this story covered?) to gate which clusters deserve LLM attention. Step 4 runs a two-pass LLM pipeline to add the persona dimension.
 
-**`repetition_score`** (70% weight) — *How many articles cover this event?*
+**`repetition_score`** — *How many articles cover this event?*
 ```
 repetition_score = log(article_count + 1) / log(max_article_count + 1)
 ```
 Normalised logarithmically so a 10-article cluster isn’t 10× better than a 1-article cluster.
 Range: [0.0, 1.0]. A cluster with the most articles scores 1.0.
 
-**`feed_diversity_score`** (30% weight) — *How many different feeds reported this event?*
-```
-feed_diversity_score = (unique_feed_count - 1) / (TOTAL_FEEDS - 1)
-```
-With `TOTAL_FEEDS = 12`, a story appearing in 1 feed scores 0.0; appearing in all 12 scores 1.0.
-This replaces the original pytrends slot (ADR-014). A story covered by AI & Chips *and* Economy *and* Politics is more signal-worthy than one appearing only in Tech.
-
 **Selection:**
-- All clusters sorted descending by `trend_score`
-- Top 7 retained as the LLM enrichment buffer
-- Top 5 of those 7 flagged as `for_llm = True`
-- The 2 buffer slots exist to protect against LLM failures: if a top-5 cluster fails enrichment, the next candidate is available
+- All clusters sorted descending by `repetition_score`
+- Top 15 retained as the LLM candidate pool
+- All 15 flagged as `for_llm = True`
+- Step 4 Pass 1 (cheap batch LLM call) determines which 5 are actually enriched
 
 **Output:** `output/ranked_clusters.json`
 
 ---
 
-#### Step 4 — LLM ENRICHMENT + PERSONA RESCORING (`pipeline/step4_enrich.py`)
-*Goal: transform raw article clusters into human-readable event cards, then re-rank by audience relevance.*
+#### Step 4 — TWO-PASS LLM ENRICHMENT (`pipeline/step4_enrich.py`)
+*Goal: correctly select the top 5 stories by audience relevance, then enrich them.*
 
-This step has two sub-phases: **LLM call** then **persona recomputation**.
+This eliminates the selection bias from the old architecture where step 3’s proxy signal might gate out a highly persona-relevant story that had low editorial breadth.
 
-**4a — LLM Call (per cluster)**
+**Pass 1 — Cheap Batch Sector Tagging (1 LLM call)**
 
 | Setting | Value |
 |---------|-------|
-| Provider (primary) | Google Gemini Flash (free tier, `gemini-2.0-flash`) |
-| Provider (fallback) | Groq `llama-3.3-70b-versatile` (toggled via `LLM_PROVIDER` env var) |
-| Temperature | 0.3 (low — factual, not creative) |
+| Input | All ~15 candidate headlines + snippets |
+| Output | Sector tags + confidence for each headline |
+| Temperature | 0.2 (classification task — even lower than enrichment) |
+| Cost | 1 API call total |
+
+After sector tags are returned, `persona_score` is computed for each candidate:
+```
+persona_score = weighted_sum(sector_weight × llm_confidence) / max_possible
+```
+where `PERSONA_WEIGHTS` maps each sector to SV-professional relevance (0.0–1.0).
+
+**Re-ranking and selection:**
+```
+combined_score = 0.70 × repetition_score + 0.30 × persona_score
+```
+Top 5 by `combined_score` advance to Pass 2.
+
+**Pass 2 — Full Enrichment (5 individual LLM calls)**
+
+| Setting | Value |
+|---------|-------|
+| Provider (primary) | Google Gemini Flash (`gemini-2.5-flash`) |
+| Provider (fallback) | Groq `llama-3.3-70b-versatile` (via `LLM_PROVIDER` env var) |
+| Temperature | 0.3 (factual, not creative) |
 | Retries | 3 attempts per cluster; exponential backoff |
 | Failure behaviour | RuntimeError caught per-cluster; cluster skipped, loop continues |
 
@@ -248,15 +262,15 @@ sectors_impacted   : list[SectorImpact]   1–5 items, sorted by confidence desc
 `Labour & Employment`, `Manufacturing`, `Agriculture`, `Healthcare`, `Education`,
 `Media & Entertainment`, `Retail & E-commerce`, `Real Estate`
 
-**4b — Persona Scoring (after LLM returns sectors)**
+**Final Score (after Pass 2):**
 
-Once `sectors_impacted` exist, the **final signal score** is computed and written to each event:
+Pass 2 sectors are more accurate (full article context vs headline-only), so the final score is recomputed:
 
 ```
-signal_score = 0.70 × repetition_score + 0.30 × persona_score
+signal_score = 0.70 × repetition_score + 0.30 × persona_score(pass2_sectors)
 ```
 
-This uses the same 70/30 structure as Step 3 but swaps `feed_diversity_score` for `persona_score` now that sectors are known. The Step 3 `selection_score` is discarded — `signal_score` is the only score persisted to the DB and served via the API.
+This is the only score persisted to the DB and served via the API.
 
 `persona_score` is computed from `PERSONA_WEIGHTS` — a single-source-of-truth dict mapping each sector to its relevance weight for the Silicon Valley professional archetype:
 
@@ -312,7 +326,8 @@ persona_score = clamp(raw / max_possible, min=0.15, max=1.0)
 [~150–300 raw articles]                          ← Step 1: FETCH
          ↓  MiniLM-L6-v2 embeddings + DBSCAN
 [7–15 clusters (events)]                         ← Step 2: CLUSTER
-         ↓  rep_score × 0.70 + feed_diversity × 0.30
+         ↓  rep_score only (pre-filter)
+↓  top 15 candidates
 [Top 7 scored; top 5 → LLM]                      ← Step 3: SCORE
          ↓  Gemini Flash / Groq — structured JSON, 3 retries
 [5 enriched events: heading/summary/sectors]     ← Step 4a: LLM

@@ -11,9 +11,9 @@ Exit criteria (all modes):
   ✅ Brief validates against Brief schema
   ✅ 1–5 events present
   ✅ Every event has rank, trend_score, event_heading, summary, why_it_matters,
-       sectors_impacted, timeline_context, source_articles, signal_source
+       sectors_impacted, source_articles, signal_source
   ✅ event_heading ≤ 20 words
-  ✅ summary: 4–8 sentences
+  ✅ summary: 1–3 sentences
   ✅ why_it_matters: 4–8 sentences
   ✅ sectors_impacted: 1–5 items, each in valid set, confidence in [0.0, 1.0]
   ✅ source_articles non-empty; each has title, url, published_at
@@ -113,7 +113,7 @@ def validate_brief(brief: Brief, live: bool, failures: list[str]) -> None:
 
         # 4. Required fields present
         for field in ("event_heading", "summary", "why_it_matters",
-                       "timeline_context", "signal_source"):
+                       "signal_source"):
             val = getattr(ev, field)
             ok = check(f"{prefix}: '{field}' non-empty", bool(val and val.strip()),
                        f"{len(val)} chars")
@@ -127,12 +127,12 @@ def validate_brief(brief: Brief, live: bool, failures: list[str]) -> None:
         # 6+7. Sentence counts — only meaningful on real LLM output, skip in dry-run
         if live:
             s_count = count_sentences(ev.summary)
-            ok = check(f"{prefix}: summary 4–8 sentences", 4 <= s_count <= 10,
+            ok = check(f"{prefix}: summary 1–3 sentences", 1 <= s_count <= 3,
                        f"~{s_count} sentences")
             if not ok: failures.append(f"summary-length-#{ev.rank}")
 
             w_count = count_sentences(ev.why_it_matters)
-            ok = check(f"{prefix}: why_it_matters 4–8 sentences", 4 <= w_count <= 10,
+            ok = check(f"{prefix}: why_it_matters 1–2 sentences", 1 <= w_count <= 2,
                        f"~{w_count} sentences")
             if not ok: failures.append(f"wim-length-#{ev.rank}")
         else:

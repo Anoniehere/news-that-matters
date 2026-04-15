@@ -1,23 +1,24 @@
 """
-Step 3: Trend Scoring
+Step 3: Trend Scoring — Reputation-Based Pre-Filter
 
-Assigns a trend_score to each cluster from Step 2 using two signals:
+Assigns a trend_score to each cluster from Step 2 using ONE signal:
 
-  trend_score = 0.70 × repetition_score + 0.30 × social_score
+  trend_score = repetition_score   (log-normalised article count)
 
-  repetition_score — log-normalised article count across clusters
-  social_score     — pytrends (Google Trends) → feed-diversity fallback
+This is a PRE-FILTER, not the final score. Step 4 uses a two-pass LLM
+architecture to layer persona relevance on top:
 
-Social signal resolution order (ADR-014):
-  1. pytrends: Google Trends 4-day US interest score [0–1]
-     Works in open-internet production. Returns 400 on some corporate nets
-     due to Google's 2024 auth change in their undocumented Trends API.
-  2. feed_diversity: fraction of our 5 RSS feeds that covered this cluster
-     Completely offline, deterministic, highly reproducible.
-     A story in Economy + US Politics + Top Stories simultaneously IS trending.
+  Step 3 (here): rank by coverage breadth → select top 15 candidates
+  Step 4 Pass 1:  cheap batch LLM call → sector tags → persona_score
+  Step 4 Pass 2:  full enrichment on the correctly-selected top 5
+  Final score:    0.70 × rep_score + 0.30 × persona_score
 
-Weights: repetition 70%, social 30%  (ADR-003, ADR-010)
-Top 7 clusters are ranked; top 5 flagged for_llm=True for M3 enrichment.
+Why not cross-feed scoring here? Editorial breadth and persona relevance measure
+different things (editorial consensus vs audience fit). Persona score is
+strictly more useful but requires an LLM call, so rep_score alone serves
+as the cheap pre-filter that decides which clusters deserve LLM attention.
+
+Top 15 clusters are passed to step 4; step 4 selects the final top 5.
 
 Usage:
     python -m pipeline.step3_score
@@ -27,16 +28,12 @@ import json
 import logging
 import math
 import os
-import re
-import ssl
-import time
 from datetime import datetime
 from pathlib import Path
 
 from models.schemas import (
     Cluster,
     ClusterResult,
-    FetchResult,
     ScoredCluster,
     TrendResult,
 )
@@ -45,70 +42,16 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
 # ---------------------------------------------------------------------------
-# Config — all weights / constants in one place (AGENTS.md rule)
+# Config
 # ---------------------------------------------------------------------------
-WEIGHT_REP     = 0.70   # ADR-003, ADR-010
-WEIGHT_SOCIAL  = 0.30
-TOP_N_TOTAL    = 7      # buffer passed through pipeline
-TOP_N_LLM      = 5      # flagged for_llm=True → step4_enrich
-TOTAL_FEEDS    = 12     # 5 core geopolitics + 7 SV-persona feeds (step1_fetch.py)
-PYTRENDS_SLEEP = 2.0    # seconds between pytrends calls (exit criterion)
+TOP_N_CANDIDATES = 15   # passed to step 4 for two-pass LLM scoring
 
 INPUT_PATH  = Path("output/clusters.json")
 OUTPUT_PATH = Path("output/ranked_clusters.json")
 
-STOP_WORDS = {
-    "a", "an", "the", "is", "are", "was", "were", "be", "been", "have",
-    "has", "had", "do", "does", "did", "to", "of", "in", "on", "at",
-    "by", "for", "with", "as", "from", "and", "or", "but", "not", "it",
-    "its", "this", "that", "says", "said", "new", "one", "two", "after",
-    "amid", "could", "would", "will", "may", "can", "how", "why", "what",
-    "who", "when", "where", "breaking", "watch", "live", "update",
-    "report", "following", "latest", "top", "here", "now",
-}
-
 
 # ---------------------------------------------------------------------------
-# Keyword extraction
-# ---------------------------------------------------------------------------
-
-def _extract_search_term(cluster: Cluster, max_words: int = 4) -> str:
-    """
-    Extract a concise search term from the cluster's headline article.
-    Strips source attribution, removes stop words, prefers proper nouns.
-    """
-    title = cluster.headline_article.title
-
-    # Strip source name appended after separators like " - Reuters"
-    for sep in (" - ", " | ", " — ", " – ", " : "):
-        if sep in title:
-            title = title[: title.rfind(sep)].strip()
-            break
-
-    # Remove leading news tags: "BREAKING:", "WATCH:", "UPDATE:" etc.
-    title = re.sub(r"^[A-Z]{2,}[:\s]+", "", title).strip()
-
-    # Remove trailing punctuation
-    title = re.sub(r"[?.!]+$", "", title).strip()
-
-    words = title.split()
-
-    # Prefer capitalised terms (proper nouns) — they make better queries
-    proper = [w for w in words if w and w[0].isupper() and w.lower() not in STOP_WORDS]
-    if len(proper) >= 2:
-        return " ".join(proper[:max_words])
-
-    # Fall back to any non-stop words
-    meaningful = [w for w in words if w.lower() not in STOP_WORDS and len(w) > 2]
-    if meaningful:
-        return " ".join(meaningful[:max_words])
-
-    # Last resort: first N words of the stripped title
-    return " ".join(words[:max_words])
-
-
-# ---------------------------------------------------------------------------
-# Repetition score — 70% weight
+# Repetition score — the sole pre-filter signal
 # ---------------------------------------------------------------------------
 
 def _repetition_score(cluster: Cluster, all_clusters: list[Cluster]) -> float:
@@ -126,113 +69,24 @@ def _repetition_score(cluster: Cluster, all_clusters: list[Cluster]) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Social score — 30% weight, two-tier
-# ---------------------------------------------------------------------------
-
-def _feed_diversity_score(cluster: Cluster) -> float:
-    """
-    Fraction of our RSS feeds that contributed to this cluster.
-    Range: 0.0 (one feed) → 1.0 (all 5 feeds).
-    Formula: (unique_feeds - 1) / (TOTAL_FEEDS - 1) so single-feed = 0.0.
-    """
-    unique_feeds = len({a.feed_name for a in cluster.articles})
-    if TOTAL_FEEDS <= 1:
-        return 0.5
-    score = (unique_feeds - 1) / (TOTAL_FEEDS - 1)
-    return round(min(1.0, max(0.0, score)), 4)
-
-
-def _pytrends_score(search_term: str) -> float | None:
-    """
-    Query Google Trends for the search term over the last 4 days (geo=US).
-    Returns normalised score [0.0–1.0] or None on any failure.
-
-    None signals the caller to fall back to feed_diversity.
-    0.0 is returned only for genuine zero-interest (term found but no searches).
-    """
-    try:
-        ssl._create_default_https_context = ssl._create_unverified_context  # Walmart proxy
-
-        # Import lazily — not all envs have pytrends
-        from pytrends.request import TrendReq
-
-        pt = TrendReq(
-            hl="en-US",
-            tz=360,
-            timeout=(8, 25),
-            requests_args={"verify": False},
-        )
-        pt.build_payload(
-            kw_list=[search_term],
-            cat=0,
-            timeframe="now 4-d",
-            geo="US",
-        )
-        df = pt.interest_over_time()
-
-        if df is None or df.empty or search_term not in df.columns:
-            log.debug("  pytrends: no data returned for '%s'", search_term)
-            return 0.0
-
-        mean_interest = float(df[search_term].mean())
-        return round(min(1.0, max(0.0, mean_interest / 100.0)), 4)
-
-    except Exception as exc:
-        log.debug("  pytrends failed for '%s': %s", search_term, exc)
-        return None   # caller falls back to feed_diversity
-
-
-def _social_score(
-    cluster: Cluster,
-    all_clusters: list[Cluster],
-    *,
-    try_pytrends: bool = True,
-) -> tuple[float, str]:
-    """
-    Return (social_score, signal_source) where signal_source is one of:
-      "pytrends"      — Google Trends data used
-      "feed_diversity"— cross-feed coverage used (proxy signal)
-    """
-    if try_pytrends:
-        term = _extract_search_term(cluster)
-        log.debug("  Querying pytrends for: '%s'", term)
-        score = _pytrends_score(term)
-        time.sleep(PYTRENDS_SLEEP)   # rate-limit compliance (exit criterion)
-        if score is not None:
-            return score, "pytrends"
-        log.info("  pytrends unavailable — using feed_diversity fallback")
-
-    score = _feed_diversity_score(cluster)
-    return score, "feed_diversity"
-
-
-# ---------------------------------------------------------------------------
-# Trend insight — human-readable explanation of how the score was computed
+# Trend insight — human-readable explanation
 # ---------------------------------------------------------------------------
 
 def _build_trend_insight(
     cluster: Cluster,
     rep_score: float,
-    soc_score: float,
-    trend_score: float,
-    signal_source: str,
 ) -> str:
     """
-    Build a plain-English sentence explaining exactly why this cluster got
-    its trend score. Grounded in real numbers — no LLM, no hallucination.
+    Plain-English sentence explaining why this cluster ranked here.
+    Grounded in real numbers — no LLM, no hallucination.
 
-    Example output:
-      "Score driven by strong cross-source repetition: 12 articles across
-       4 feeds (70% weight = 0.84). Google Trends added a moderate signal
-       of 0.41 (30% weight). Combined: 70% trend score."
+    Step 4 will overwrite this after persona re-scoring. This version
+    explains the pre-filter logic only.
     """
     unique_feeds  = len({a.feed_name for a in cluster.articles})
     article_count = cluster.size
     rep_pct       = int(round(rep_score * 100))
-    soc_pct       = int(round(soc_score * 100))
-    total_pct     = int(round(trend_score * 100))
 
-    # Repetition descriptor
     if rep_pct >= 80:
         rep_label = "very high"
     elif rep_pct >= 55:
@@ -242,30 +96,13 @@ def _build_trend_insight(
     else:
         rep_label = "low"
 
-    # Social descriptor
-    if soc_pct >= 70:
-        soc_label = "high"
-    elif soc_pct >= 40:
-        soc_label = "moderate"
-    elif soc_pct >= 15:
-        soc_label = "low"
-    else:
-        soc_label = "minimal"
-
-    source_label = (
-        "Google Trends" if signal_source == "pytrends"
-        else "cross-feed coverage"
-    )
-
-    feed_word  = "feed" if unique_feeds == 1 else "feeds"
-    art_word   = "article" if article_count == 1 else "articles"
+    feed_word = "feed" if unique_feeds == 1 else "feeds"
+    art_word  = "article" if article_count == 1 else "articles"
 
     return (
-        f"{total_pct}% trend score: {rep_label} repetition — "
-        f"{article_count} {art_word} across {unique_feeds} {feed_word} "
-        f"({rep_pct}% rep × 70% weight). "
-        f"{soc_label.capitalize()} {source_label} signal "
-        f"({soc_pct}% × 30% weight)."
+        f"{rep_pct}% coverage score: {rep_label} repetition — "
+        f"{article_count} {art_word} across {unique_feeds} {feed_word}. "
+        f"Pre-filter only; final score set after persona re-ranking in step 4."
     )
 
 
@@ -275,13 +112,12 @@ def _build_trend_insight(
 
 def score_clusters(cluster_result: ClusterResult) -> TrendResult:
     """
-    Score and rank all clusters. Returns TrendResult with top-N scored clusters.
-    Tries pytrends first; if first call fails, switches all remaining to feed_diversity.
+    Score and rank all clusters by repetition only. Returns TrendResult
+    with top-N candidates for step 4's two-pass LLM scoring.
 
-    Singleton promotion: when real clusters < TOP_N_LLM, recent singletons are
-    wrapped into synthetic single-article clusters and scored honestly (lower rep
-    score) to fill the output. This prevents the app showing < 3 cards when
-    geo-political news is diverse (many unique events, few repeated ones).
+    Singleton promotion: when real clusters < 5, recent singletons are
+    wrapped into synthetic single-article clusters and scored honestly
+    (lower rep score) to fill the output.
     """
     clusters   = cluster_result.clusters
     singletons = cluster_result.singletons
@@ -290,110 +126,71 @@ def score_clusters(cluster_result: ClusterResult) -> TrendResult:
         log.warning("Step 3: No clusters or singletons — returning empty TrendResult")
         return TrendResult(ranked_clusters=[])
 
-    log.info("Step 3: Scoring %d clusters…", len(clusters))
-
-    # Probe pytrends with the first cluster; if it fails switch all to feed_diversity
-    use_pytrends = False
-    probe_score: float | None = None
-    if clusters:
-        probe_term  = _extract_search_term(clusters[0])
-        probe_score = _pytrends_score(probe_term)
-        time.sleep(PYTRENDS_SLEEP)
-        use_pytrends = probe_score is not None
-        if use_pytrends:
-            log.info("Step 3: pytrends is live — using Google Trends for social signal")
-        else:
-            log.info("Step 3: pytrends unavailable — using feed_diversity for all clusters")
-    else:
-        log.info("Step 3: no real clusters — skipping pytrends, will promote singletons")
+    log.info("Step 3: Scoring %d clusters by repetition…", len(clusters))
 
     scored: list[ScoredCluster] = []
-    for i, cluster in enumerate(clusters):
+    for cluster in clusters:
         rep = _repetition_score(cluster, clusters)
-        term = _extract_search_term(cluster)
-
-        if i == 0 and use_pytrends and probe_score is not None:
-            # Reuse the probe result for the first cluster
-            soc, src = probe_score, "pytrends"
-        else:
-            soc, src = _social_score(
-                cluster,
-                clusters,
-                try_pytrends=use_pytrends and i > 0,
-            )
-
-        trend = round(WEIGHT_REP * rep + WEIGHT_SOCIAL * soc, 4)
-        insight = _build_trend_insight(cluster, rep, soc, trend, src)
+        insight = _build_trend_insight(cluster, rep)
 
         scored.append(ScoredCluster(
             cluster=cluster,
             repetition_score=rep,
-            social_score=soc,
-            trend_score=trend,
+            trend_score=rep,         # step 4 will overwrite with rep+persona
             trend_insight=insight,
-            search_term=term,
-            signal_source=src,
+            signal_source="reputation",
         ))
 
         log.info(
-            "  cluster #%d [%d arts] rep=%.3f soc=%.3f trend=%.3f  '%s'",
-            cluster.cluster_id, cluster.size, rep, soc, trend,
+            "  cluster #%d [%d arts] rep=%.3f  '%s'",
+            cluster.cluster_id, cluster.size, rep,
             cluster.headline_article.title[:50],
         )
 
     # ── Singleton promotion ────────────────────────────────────────────────
-    # If real clusters don't fill TOP_N_LLM slots, promote the most recent
-    # singletons. Each gets a synthetic Cluster with cluster_id < 0 so it's
-    # never confused with a real DBSCAN cluster.
-    # Rep score is capped at 0.4 (single article = inherently less trending)
-    # so promoted singletons always rank below genuine multi-article clusters.
-    if len(scored) < TOP_N_LLM and singletons:
-        needed = TOP_N_LLM - len(scored)
+    # If real clusters don't fill 5 slots, promote recent singletons.
+    # Each gets a synthetic Cluster with cluster_id < 0.
+    # Rep score capped at 0.4 — promoted singletons always rank below
+    # genuine multi-article clusters.
+    MIN_EVENTS = 5
+    if len(scored) < MIN_EVENTS and singletons:
+        needed = MIN_EVENTS - len(scored)
         recent = sorted(singletons, key=lambda a: a.published_at, reverse=True)
         log.info(
-            "Step 3: Only %d real clusters — promoting up to %d singletons to fill output.",
+            "Step 3: Only %d real clusters — promoting up to %d singletons.",
             len(scored), needed,
         )
         for i, art in enumerate(recent[:needed]):
             synth = Cluster(cluster_id=-(i + 1), articles=[art], size=1)
-            # Honest scores: single article = low repetition, single feed = 0 diversity
-            rep   = round(min(0.4, math.log(2) / math.log(max(2, max(
+            rep = round(min(0.4, math.log(2) / math.log(max(2, max(
                 (c.size for c in clusters), default=1
             ) + 1))), 4)
-            soc   = 0.0
-            trend = round(WEIGHT_REP * rep + WEIGHT_SOCIAL * soc, 4)
-            insight = _build_trend_insight(synth, rep, soc, trend, "feed_diversity")
+            insight = _build_trend_insight(synth, rep)
             scored.append(ScoredCluster(
                 cluster=synth,
                 repetition_score=rep,
-                social_score=soc,
-                trend_score=trend,
+                trend_score=rep,
                 trend_insight=insight,
-                search_term=_extract_search_term(synth),
                 signal_source="singleton",
             ))
-            log.info(
-                "  promoted singleton: '%s'",
-                art.title[:60],
-            )
+            log.info("  promoted singleton: '%s'", art.title[:60])
 
-    # Sort descending, assign rank, flag top 5 for LLM
+    # Sort descending, assign rank, flag all candidates for step 4
     scored.sort(key=lambda s: s.trend_score, reverse=True)
-    top_n = scored[:TOP_N_TOTAL]
+    top_n = scored[:TOP_N_CANDIDATES]
 
     for rank, sc in enumerate(top_n, start=1):
         sc.rank = rank
-        sc.for_llm = rank <= TOP_N_LLM
+        sc.for_llm = True   # all candidates go to step 4's two-pass LLM
 
     log.info(
-        "Step 3: Top %d clusters ranked. Top %d flagged for LLM enrichment.",
-        len(top_n), min(TOP_N_LLM, len(top_n)),
+        "Step 3: %d candidates ranked and passed to step 4 for LLM scoring.",
+        len(top_n),
     )
     for sc in top_n:
-        llm_flag = "→ LLM" if sc.for_llm else "      "
         log.info(
-            "  #%d %s  trend=%.3f  %s",
-            sc.rank, llm_flag, sc.trend_score,
+            "  #%d  rep=%.3f  '%s'",
+            sc.rank, sc.trend_score,
             sc.cluster.headline_article.title[:55],
         )
 

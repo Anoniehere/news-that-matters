@@ -1,24 +1,27 @@
 """
-pipeline/step4_enrich.py — M3: LLM Enrichment
+pipeline/step4_enrich.py — Two-Pass LLM Enrichment
 
-For each of the top-5 trend-scored clusters, calls an LLM to produce:
-event_heading, summary, why_it_matters, sectors_impacted.
+Pass 1 (cheap):  1 batch LLM call → sector tags for all ~15 candidates
+                 → persona_score → re-rank → select top 5
+Pass 2 (full):   5 individual LLM calls → heading, summary, why_it_matters
+
+This eliminates the selection bias from step 3's rep-only ranking.
+Step 3 sends ~15 candidates ranked by editorial coverage (rep_score).
+Pass 1 adds the persona dimension ("does an SV professional care?").
+Pass 2 enriches only the correctly-selected top 5.
+
+Total LLM cost: 1 cheap batch call + 5 full calls = 6 calls
+(vs 5 calls before, but now the right 5 stories are selected).
 
 Provider selection (LLM_PROVIDER env var):
-  gemini  — Google Gemini Flash (default; works on Walmart network via googleapis.com)
-  groq    — Groq llama-3.3-70b-versatile (faster; blocked on Walmart proxy)
-
-Guardrails:
-  - No financial advice (system prompt + post-validation check)
-  - Source-grounded only (model instructed to use provided articles)
-  - Temperature 0.3 (factuality over creativity — AGENTS.md hard rule)
-  - Pydantic schema validation; retries up to MAX_RETRIES on failure
+  gemini  — Google Gemini Flash (default)
+  groq    — Groq llama-3.3-70b-versatile
 
 Usage:
     python pipeline/step4_enrich.py           # reads ranked_clusters.json
     python pipeline/step4_enrich.py --dry-run # skips LLM; validates schema only
 
-Output: output/brief.json  (validates against Brief schema)
+Output: output/brief.json
 """
 from __future__ import annotations
 
@@ -69,13 +72,11 @@ FINANCIAL_ADVICE_PHRASES = [
 ]
 
 # ---------------------------------------------------------------------------
-# Persona relevance scoring (Option 1 — replaces dead pytrends 30% weight)
+# Persona relevance scoring
 #
 # Weights reflect what a Silicon Valley professional (PM / founder / investor)
-# actually cares about in a geopolitical brief. Sector names must match
-# VALID_SECTORS exactly. Anything not listed defaults to 0.2 (low relevance).
-# Tuning: raise a weight if that sector keeps producing under-ranked stories;
-# lower it if stories feel noisy. Single source of truth — change here only.
+# cares about. Used in both Pass 1 (sector tags → selection) and Pass 2
+# (full enrichment → final score). Single source of truth.
 # ---------------------------------------------------------------------------
 
 PERSONA_WEIGHTS: dict[str, float] = {
@@ -98,7 +99,7 @@ PERSONA_WEIGHTS: dict[str, float] = {
 def _persona_score(sectors: list[SectorImpact]) -> float:
     """
     Compute audience-relevance score [0.0–1.0] for the SV professional persona.
-    Replaces the dead pytrends 30% weight in the final trend_score.
+    Used in both Pass 1 (cheap sector tags) and Pass 2 (full enrichment).
 
     Formula: weighted sum of (sector_weight × llm_confidence), normalised.
     Cap at 1.0; floor at 0.15 so even low-relevance events aren’t zeroed out.
@@ -113,6 +114,136 @@ def _persona_score(sectors: list[SectorImpact]) -> float:
     max_possible = sum(sorted(PERSONA_WEIGHTS.values(), reverse=True)[:len(sectors)])
     normalised = raw / max_possible if max_possible > 0 else raw
     return round(min(1.0, max(0.15, normalised)), 4)
+
+
+# ---------------------------------------------------------------------------
+# Pass 1: Cheap batch sector tagging
+#
+# Single LLM call — all candidate headlines in, sector tags out.
+# Used to compute persona_score BEFORE selecting the top 5 for full enrichment.
+# This eliminates the selection bias where step 3's rep-only ranking might
+# a highly persona-relevant story that had low editorial breadth.
+# ---------------------------------------------------------------------------
+
+TOP_N_FINAL = 5   # final events after persona re-ranking
+
+SECTOR_TAG_PROMPT = """You are a geopolitical sector classifier. For each numbered headline below,
+identify the 2–3 most relevant sectors from this EXACT list:
+""" + ", ".join(VALID_SECTORS) + """
+
+Rules:
+1. Use ONLY sector names from the list above. Exact spelling.
+2. Assign a confidence score (0.0–1.0) for each sector.
+3. Return ONLY valid JSON — no commentary.
+
+Output JSON schema (array of objects, one per headline):
+[
+  {"id": 1, "sectors": [{"name": "Technology", "confidence": 0.9}, ...]},
+  {"id": 2, "sectors": [{"name": "Finance", "confidence": 0.7}, ...]},
+  ...
+]
+"""
+
+
+def _build_sector_tag_message(candidates: list) -> str:
+    """Build a numbered headline list for the batch sector tagging prompt."""
+    lines = ["HEADLINES TO CLASSIFY:"]
+    for i, sc in enumerate(candidates, 1):
+        headline = sc.cluster.headline_article.title[:120]
+        snippet  = sc.cluster.headline_article.body_snippet[:150].strip()
+        lines.append(f"\n[{i}] {headline}")
+        if snippet:
+            lines.append(f"    {snippet}")
+    lines.append("\nClassify all headlines now.")
+    return "\n".join(lines)
+
+
+def _batch_sector_tag(client, provider: str, candidates: list) -> list[list[SectorImpact]]:
+    """
+    Pass 1: single cheap LLM call to get sector tags for ALL candidates.
+    Returns a list of SectorImpact lists, one per candidate (same order).
+    On failure, returns empty lists (graceful degradation — rep_score alone decides).
+    """
+    user_msg = _build_sector_tag_message(candidates)
+    full_prompt = f"{SECTOR_TAG_PROMPT}\n\n{user_msg}"
+
+    log.info("Pass 1: Batch sector-tagging %d candidates in a single LLM call…", len(candidates))
+
+    try:
+        if provider == "gemini":
+            from google.genai import types as genai_types
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=full_prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.2,  # even lower temp for classification
+                    response_mime_type="application/json",
+                ),
+            )
+            raw_list = json.loads(response.text)
+        else:  # groq
+            resp = client.chat.completions.create(
+                model=GROQ_MODEL,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": SECTOR_TAG_PROMPT},
+                    {"role": "user",   "content": user_msg},
+                ],
+            )
+            raw_list = json.loads(resp.choices[0].message.content)
+
+        # Handle both {"results": [...]} and bare [...] formats
+        if isinstance(raw_list, dict):
+            raw_list = raw_list.get("results", raw_list.get("headlines", []))
+
+        # Parse into SectorImpact lists, matched by id
+        tagged: dict[int, list[SectorImpact]] = {}
+        for entry in raw_list:
+            eid = entry.get("id", 0)
+            sectors = []
+            for s in entry.get("sectors", []):
+                name = s.get("name", "")
+                conf = float(s.get("confidence", 0.5))
+                if name in VALID_SECTORS:
+                    sectors.append(SectorImpact(name=name, confidence=min(1.0, max(0.0, conf))))
+            tagged[eid] = sectors
+
+        # Return in candidate order (1-indexed)
+        result = [tagged.get(i + 1, []) for i in range(len(candidates))]
+        tagged_count = sum(1 for r in result if r)
+        log.info("Pass 1: Got sector tags for %d/%d candidates.", tagged_count, len(candidates))
+        return result
+
+    except Exception as exc:
+        log.warning("Pass 1: Sector tagging failed (%s). Falling back to rep_score only.", exc)
+        return [[] for _ in candidates]
+
+
+def _select_top_n(candidates: list, sector_tags: list[list[SectorImpact]]) -> list:
+    """
+    Re-rank candidates using persona_score from Pass 1 sector tags.
+    Formula: 0.70 × rep_score + 0.30 × persona_score
+    Returns the top TOP_N_FINAL candidates, correctly ranked.
+    """
+    ranked = []
+    for sc, sectors in zip(candidates, sector_tags):
+        p_score = _persona_score(sectors) if sectors else 0.15
+        combined = round(0.70 * sc.repetition_score + 0.30 * p_score, 4)
+        ranked.append((combined, p_score, sc, sectors))
+
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    selected = ranked[:TOP_N_FINAL]
+
+    log.info("Pass 1 → Re-ranked. Top %d selected for full enrichment:", len(selected))
+    for i, (score, p, sc, _) in enumerate(selected, 1):
+        log.info(
+            "  #%d  combined=%.3f (rep=%.2f persona=%.2f)  '%s'",
+            i, score, sc.repetition_score, p,
+            sc.cluster.headline_article.title[:50],
+        )
+
+    return selected
 
 SYSTEM_PROMPT = """You are a senior geopolitical intelligence analyst writing for busy Silicon Valley
 professionals aged 28–45 — product managers, startup founders, and early-stage investors.
@@ -335,23 +466,26 @@ def _call_groq(client, sc: ScoredCluster) -> dict:
     )
 
 
-def _make_mock_event(sc: ScoredCluster) -> EnrichedEvent:
+def _make_mock_event(sc: ScoredCluster, rank: int,
+                     pass1_sectors: list[SectorImpact] | None = None) -> EnrichedEvent:
     """Dry-run mock — no LLM call. Validates schema only."""
+    sectors = pass1_sectors or [SectorImpact(name="Technology", confidence=0.9)]
     return EnrichedEvent(
-        rank=sc.rank,
+        rank=rank,
         trend_score=sc.trend_score,
         trend_insight=sc.trend_insight,
         event_heading=f"[DRY RUN] {sc.cluster.headline_article.title[:60]}",
         summary=(
             "This is a dry-run summary. No LLM was called. "
-            "Add GROQ_API_KEY to .env and run without --dry-run."
+            "Add GEMINI_API_KEY to .env and run without --dry-run."
         ),
         why_it_matters=(
             "Dry-run mode active. This field would contain persona-tailored "
             "analysis for a Silicon Valley professional."
         ),
-        sectors_impacted=[SectorImpact(name="Technology", confidence=0.9)],
+        sectors_impacted=sectors,
         source_articles=sc.cluster.articles,
+        signal_source="dry-run",
     )
 
 
@@ -360,85 +494,105 @@ def enrich_clusters(
     dry_run: bool = False,
 ) -> Brief:
     """
-    Core M3 function. Enriches all for_llm=True clusters.
-    Returns a validated Brief ready for output/brief.json.
+    Two-pass LLM enrichment pipeline:
+
+      Pass 1 (cheap):  1 batch LLM call → sector tags for all candidates
+                       → compute persona_score → re-rank → select top 5
+      Pass 2 (full):   5 individual LLM calls → full enrichment
+                       (heading, summary, why_it_matters, sectors)
+
+    This eliminates the selection bias where step 3's rep-only ranking
+    might gate out a highly persona-relevant story.
     """
     candidates = [sc for sc in trend_result.ranked_clusters if sc.for_llm]
     _provider_label = "DRY RUN" if dry_run else os.getenv("LLM_PROVIDER", "gemini").upper()
-    log.info(f"Step 4: Enriching {len(candidates)} clusters via LLM ({_provider_label})…")
+    log.info(
+        f"Step 4: Two-pass enrichment for {len(candidates)} candidates ({_provider_label})"
+    )
 
+    # ── Initialise LLM client ───────────────────────────────────────────────────────
     if not dry_run:
         provider = os.getenv("LLM_PROVIDER", "gemini").lower()
-
         if provider == "gemini":
             api_key = os.getenv("GEMINI_API_KEY", "")
             if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
                 raise EnvironmentError(
                     "\n\n  ❌  GEMINI_API_KEY not set.\n"
-                    "  1. Get a free key (works on Walmart network): https://aistudio.google.com/apikey\n"
-                    "  2. Open .env and set GEMINI_API_KEY=your_key\n"
-                    "  3. Re-run this script\n"
+                    "  1. Get a free key: https://aistudio.google.com/apikey\n"
+                    "  2. Set GEMINI_API_KEY in .env\n"
                     "  Or run with --dry-run to validate schema only.\n"
                 )
             from google import genai
-            proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
             client = genai.Client(api_key=api_key)
-            log.info(f"Step 4: Using provider=gemini ({GEMINI_MODEL})"
-                     + (f" via proxy {proxy}" if proxy else ""))
-
+            log.info(f"Step 4: Provider=gemini ({GEMINI_MODEL})")
         elif provider == "groq":
             api_key = os.getenv("GROQ_API_KEY", "")
             if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
                 raise EnvironmentError(
                     "\n\n  ❌  GROQ_API_KEY not set.\n"
-                    "  1. Get a free key at https://console.groq.com\n"
-                    "  2. Open .env and set GROQ_API_KEY=your_key\n"
-                    "  3. NOTE: Groq is blocked on Walmart network — switch to LLM_PROVIDER=gemini\n"
+                    "  NOTE: Groq blocked on Walmart network — use LLM_PROVIDER=gemini\n"
                 )
             from groq import Groq
             client = Groq(api_key=api_key)
-            log.info(f"Step 4: Using provider=groq ({GROQ_MODEL})")
-
+            log.info(f"Step 4: Provider=groq ({GROQ_MODEL})")
         else:
-            raise EnvironmentError(f"Unknown LLM_PROVIDER='{provider}'. Use 'gemini' or 'groq'.")
+            raise EnvironmentError(f"Unknown LLM_PROVIDER='{provider}'.")
     else:
         provider = "dry-run"
         client = None
 
+    # ── Pass 1: Batch sector tagging + persona re-rank ─────────────────────────
+    if dry_run:
+        # Dry-run: no LLM call, just take the top 5 by rep_score
+        sector_tags = [[SectorImpact(name="Technology", confidence=0.9)]
+                       for _ in candidates]
+    else:
+        sector_tags = _batch_sector_tag(client, provider, candidates)
+
+    selected = _select_top_n(candidates, sector_tags)
+
+    # ── Pass 2: Full enrichment on the correctly-selected top N ────────────
+    log.info("Pass 2: Full enrichment on %d events…", len(selected))
     events: list[EnrichedEvent] = []
-    for sc in candidates:
+
+    for final_rank, (combined_score, p1_persona, sc, p1_sectors) in enumerate(selected, 1):
         t0 = time.time()
         try:
             if dry_run:
-                event = _make_mock_event(sc)
+                event = _make_mock_event(sc, final_rank, p1_sectors)
             else:
-                raw = _call_gemini(client, sc) if provider == "gemini" else _call_groq(client, sc)
+                raw = (
+                    _call_gemini(client, sc) if provider == "gemini"
+                    else _call_groq(client, sc)
+                )
+                # Pass 2 sectors are more accurate (full article context)
+                p2_sectors = [
+                    SectorImpact(name=s["name"], confidence=float(s["confidence"]))
+                    for s in sorted(
+                        raw["sectors_impacted"],
+                        key=lambda x: x["confidence"],
+                        reverse=True,
+                    )
+                ]
                 event = EnrichedEvent(
-                    rank=sc.rank,
-                    trend_score=sc.trend_score,
-                    trend_insight=sc.trend_insight,
+                    rank=final_rank,
+                    trend_score=combined_score,
+                    trend_insight="",  # set below
                     event_heading=raw["event_heading"],
                     summary=raw["summary"],
                     why_it_matters=raw["why_it_matters"],
-                    sectors_impacted=[
-                        SectorImpact(name=s["name"], confidence=float(s["confidence"]))
-                        for s in sorted(
-                            raw["sectors_impacted"],
-                            key=lambda x: x["confidence"],
-                            reverse=True,
-                        )
-                    ],
+                    sectors_impacted=p2_sectors,
                     source_articles=sc.cluster.articles,
-                    signal_source=sc.signal_source,
+                    signal_source="persona",
                 )
 
-            # ── Persona score recomputation ────────────────────────────────────
-            # Replace the dead 30% social weight with audience relevance.
-            # Formula: 0.70 × rep_score (coverage) + 0.30 × persona_score
-            p_score   = _persona_score(event.sectors_impacted)
-            event.trend_score = round(0.70 * sc.repetition_score + 0.30 * p_score, 4)
+            # ── Final score: use Pass 2 sectors (more accurate) ─────────────
+            p2_score  = _persona_score(event.sectors_impacted)
+            event.trend_score = round(
+                0.70 * sc.repetition_score + 0.30 * p2_score, 4
+            )
             rep_pct   = int(round(sc.repetition_score * 100))
-            pers_pct  = int(round(p_score * 100))
+            pers_pct  = int(round(p2_score * 100))
             total_pct = int(round(event.trend_score * 100))
             event.trend_insight = (
                 f"{total_pct}% signal score: {rep_pct}% coverage (70%) "
@@ -449,14 +603,13 @@ def enrich_clusters(
             elapsed = time.time() - t0
             log.info(
                 f"  #{event.rank} ✓ {elapsed:.1f}s | signal={event.trend_score:.3f} "
-                f"(rep={sc.repetition_score:.2f} persona={p_score:.2f}) "
+                f"(rep={sc.repetition_score:.2f} persona={p2_score:.2f}) "
                 f"| \"{event.event_heading[:45]}\""
             )
             events.append(event)
 
         except RuntimeError as exc:
-            # A partial brief beats no brief — log and continue.
-            log.error(f"  #{sc.rank} ✗ Skipping — all retries exhausted: {exc}")
+            log.error(f"  #{final_rank} ✗ Skipping — all retries exhausted: {exc}")
             continue
 
     brief = Brief(events=events)

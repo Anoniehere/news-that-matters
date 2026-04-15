@@ -61,18 +61,16 @@ class ClusterResult(BaseModel):
 
 class ScoredCluster(BaseModel):
     cluster: Cluster
-    repetition_score: float         # 0.0–1.0  article-count signal
-    social_score: float             # 0.0–1.0  pytrends OR feed-diversity fallback
-    trend_score: float              # 0.70*rep + 0.30*social
+    repetition_score: float         # 0.0–1.0  log-normalised article count
+    trend_score: float              # step3: =rep_score; step4 overwrites with rep+persona
     trend_insight: str = ""         # human-readable breakdown of how the score was computed
     rank: Optional[int] = None      # assigned after sorting
-    for_llm: bool = False           # True for top-5 clusters passed to M3
-    search_term: str = ""           # keyword used for social signal query
-    signal_source: str = ""         # "pytrends" | "feed_diversity" | "none"
+    for_llm: bool = False           # True for all candidates passed to step 4
+    signal_source: str = ""         # "reputation" (step3) → "persona" (step4)
 
 
 class TrendResult(BaseModel):
-    ranked_clusters: list[ScoredCluster]   # top 7, sorted desc by trend_score
+    ranked_clusters: list[ScoredCluster]   # top 15, sorted desc by rep_score
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
