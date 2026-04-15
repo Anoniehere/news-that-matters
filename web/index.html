@@ -209,6 +209,14 @@
     </div>
     <!-- Progress dots -->
     <div class="prog-dots" id="prog-dots"></div>
+    <!-- Quota/refresh status line: only visible when quota exhausted or stale -->
+    <div id="refresh-status" style="
+      display:none;
+      font-size:10px;
+      color:var(--muted);
+      margin-top:4px;
+      letter-spacing:.02em;
+    "></div>
   </header>
 
   <!-- Card stack -->
@@ -628,6 +636,8 @@ async function fetchAndInit() {
     const data = await res.json();
     EVENTS = adaptBrief(data);
     const meta = data.meta || {};
+
+    // Stale-data banner (existing)
     if (meta.is_stale) {
       const mins = Math.round(meta.age_minutes || 0);
       const label = mins >= 90 ? `${Math.round(mins/60)}h` : `${mins}m`;
@@ -635,10 +645,41 @@ async function fetchAndInit() {
       const age = document.getElementById('stale-age');
       if (bar && age) { age.textContent = label; bar.style.display = 'block'; }
     }
+
+    // Quota / refresh status line (new)
+    const statusEl = document.getElementById('refresh-status');
+    if (statusEl) {
+      const parts = [];
+      if (meta.last_refreshed_at) {
+        const ago = _relativeTime(new Date(meta.last_refreshed_at));
+        parts.push(`Updated ${ago}`);
+      }
+      if (meta.quota_exhausted && meta.next_refresh_at) {
+        const t = new Date(meta.next_refresh_at);
+        const hhmm = t.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+        parts.push(`\u2022 Refreshes ~${hhmm}`);
+      }
+      if (parts.length) {
+        statusEl.textContent = parts.join(' ');
+        statusEl.style.display = 'block';
+      }
+    }
+
     init();
   } catch(e) {
     showError(e.message);
   }
+}
+
+/** Returns a human-readable relative-time string (e.g. "3h ago", "just now"). */
+function _relativeTime(date) {
+  const diff = Date.now() - date.getTime();
+  const m = Math.round(diff / 60000);
+  if (m <  2) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
 }
 
 document.addEventListener('DOMContentLoaded', fetchAndInit);

@@ -28,16 +28,27 @@ def run_pipeline_job() -> None:
     """
     Execute the full pipeline and persist the result.
     Called by APScheduler — must never raise (logs errors instead).
+
+    Quota-aware: if all Gemini tiers are exhausted the job returns early
+    without touching the DB, so the last good brief keeps serving.
     """
-    # Late imports so scheduler module loads fast at startup
     from app.db import save_brief
     from pipeline.run_pipeline import run_full_pipeline
 
     log.info("Scheduler ▶ pipeline job starting…")
     try:
-        brief, duration_s = run_full_pipeline()
-        save_brief(brief, duration_s)
-        log.info("Scheduler ✓ pipeline job done in %.1fs", duration_s)
+        result = run_full_pipeline()
+
+        if result.quota_blocked:
+            log.info(
+                "Scheduler: quota exhausted — keeping cached brief in DB. "
+                "Pipeline will retry after Gemini quota resets at midnight PT."
+            )
+            return   # cached brief stays current, no DB write
+
+        save_brief(result.brief, result.duration_s)
+        log.info("Scheduler ✓ pipeline job done in %.1fs", result.duration_s)
+
     except Exception as exc:
         log.error(
             "Scheduler ✗ pipeline job FAILED — last brief stays current. Error: %s",

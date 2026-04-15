@@ -97,9 +97,14 @@ def get_brief() -> dict[str, Any]:
     """
     Returns the latest enriched brief from SQLite cache.
     Never calls the pipeline — always < 500ms.
-    503 if the DB is empty (first boot only, before initial pipeline finishes).
+
+    Quota-aware: if Gemini daily quota is exhausted, the response includes
+    `quota_exhausted=True`, `last_refreshed_at`, and `next_refresh_at` so
+    the frontend can display a non-breaking "Last updated" indicator.
+    The events array is always present — UX never breaks.
     """
     from app.db import load_current_brief
+    from pipeline.quota_manager import is_quota_exhausted, get_next_refresh_at
 
     brief, meta = load_current_brief()
     if brief is None:
@@ -108,9 +113,23 @@ def get_brief() -> dict[str, Any]:
             detail="Brief not yet available — pipeline is running. Retry in ~60s.",
         )
 
+    quota_hit      = is_quota_exhausted()
+    next_refresh   = get_next_refresh_at()
+    last_refreshed = meta["created_at"]   # ISO string from DB
+
+    # Attach quota metadata to brief before serialising
+    brief.quota_exhausted    = quota_hit
+    brief.last_refreshed_at  = datetime.fromisoformat(last_refreshed)
+    brief.next_refresh_at    = next_refresh
+
     return {
         "brief": brief.model_dump(mode="json"),
-        "meta": meta,
+        "meta": {
+            **meta,
+            "quota_exhausted":  quota_hit,
+            "next_refresh_at":  next_refresh.isoformat() if next_refresh else None,
+            "last_refreshed_at": last_refreshed,
+        },
     }
 
 

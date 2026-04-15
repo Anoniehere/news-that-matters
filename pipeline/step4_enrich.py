@@ -51,13 +51,35 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# ── Custom exceptions ───────────────────────────────────────────────────────
+
+class DailyQuotaError(Exception):
+    """
+    Raised when a Gemini model tier hits its daily RPD limit.
+    NOT a transient error — retrying the same model won't help.
+    enrich_clusters catches this and tries the next model in GEMINI_MODELS.
+    If all tiers exhausted, quota_manager writes quota_state.json and
+    the pipeline serves the cached brief instead.
+    """
+
+
 # ── Constants ────────────────────────────────────────────────────────────────
 
 MAX_RETRIES      = 2
 LLM_TEMPERATURE  = 0.3          # AGENTS.md hard rule — never raise above 0.5
-GROQ_MODEL       = "llama-3.3-70b-versatile"
-GEMINI_MODEL     = "gemini-2.5-flash"
 OUTPUT_PATH      = Path("output/brief.json")
+
+# Gemini model fallback chain — tried in order on DailyQuotaError.
+# All use the same GEMINI_API_KEY. Free tier RPD per model:
+#   gemini-2.5-flash      500 RPD  (best quality)
+#   gemini-2.0-flash    1,500 RPD  (great quality)
+#   gemini-1.5-flash    1,500 RPD  (reliable fallback)
+# Total free capacity: 3,500 RPD — resets at midnight PT.
+GEMINI_MODELS: list[str] = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+]
 
 VALID_SECTORS = [
     "Technology", "Finance", "Policy & Regulation", "Labour & Employment",
@@ -158,66 +180,60 @@ def _build_sector_tag_message(candidates: list) -> str:
     return "\n".join(lines)
 
 
-def _batch_sector_tag(client, provider: str, candidates: list) -> list[list[SectorImpact]]:
+def _batch_sector_tag(client, model: str, candidates: list) -> list[list[SectorImpact]]:
     """
-    Pass 1: single cheap LLM call to get sector tags for ALL candidates.
+    Pass 1: single cheap LLM call to sector-tag ALL candidates at once.
     Returns a list of SectorImpact lists, one per candidate (same order).
-    On failure, returns empty lists (graceful degradation — rep_score alone decides).
-    """
-    user_msg = _build_sector_tag_message(candidates)
-    full_prompt = f"{SECTOR_TAG_PROMPT}\n\n{user_msg}"
 
-    log.info("Pass 1: Batch sector-tagging %d candidates in a single LLM call…", len(candidates))
+    Raises DailyQuotaError if the model tier is exhausted — caller handles fallback.
+    On any other failure: returns empty lists (graceful degradation, rep_score decides).
+    """
+    from google.genai import types as genai_types
+
+    user_msg    = _build_sector_tag_message(candidates)
+    full_prompt = f"{SECTOR_TAG_PROMPT}\n\n{user_msg}"
+    log.info("Pass 1: Batch sector-tagging %d candidates [%s]…", len(candidates), model)
 
     try:
-        if provider == "gemini":
-            from google.genai import types as genai_types
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=full_prompt,
-                config=genai_types.GenerateContentConfig(
-                    temperature=0.2,  # even lower temp for classification
-                    response_mime_type="application/json",
-                ),
-            )
-            raw_list = json.loads(response.text)
-        else:  # groq
-            resp = client.chat.completions.create(
-                model=GROQ_MODEL,
+        response = client.models.generate_content(
+            model=model,
+            contents=full_prompt,
+            config=genai_types.GenerateContentConfig(
                 temperature=0.2,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": SECTOR_TAG_PROMPT},
-                    {"role": "user",   "content": user_msg},
-                ],
-            )
-            raw_list = json.loads(resp.choices[0].message.content)
-
-        # Handle both {"results": [...]} and bare [...] formats
-        if isinstance(raw_list, dict):
-            raw_list = raw_list.get("results", raw_list.get("headlines", []))
-
-        # Parse into SectorImpact lists, matched by id
-        tagged: dict[int, list[SectorImpact]] = {}
-        for entry in raw_list:
-            eid = entry.get("id", 0)
-            sectors = []
-            for s in entry.get("sectors", []):
-                name = s.get("name", "")
-                conf = float(s.get("confidence", 0.5))
-                if name in VALID_SECTORS:
-                    sectors.append(SectorImpact(name=name, confidence=min(1.0, max(0.0, conf))))
-            tagged[eid] = sectors
-
-        # Return in candidate order (1-indexed)
-        result = [tagged.get(i + 1, []) for i in range(len(candidates))]
-        tagged_count = sum(1 for r in result if r)
-        log.info("Pass 1: Got sector tags for %d/%d candidates.", tagged_count, len(candidates))
-        return result
+                response_mime_type="application/json",
+            ),
+        )
+        raw_list = json.loads(response.text)
 
     except Exception as exc:
+        err_str = str(exc)
+        daily_quota_phrases = (
+            "check your plan and billing",
+            "exceeded your current quota",
+            "billing details",
+        )
+        if any(p in err_str for p in daily_quota_phrases):
+            raise DailyQuotaError(f"Pass 1 — {model} daily quota hit: {exc}")
         log.warning("Pass 1: Sector tagging failed (%s). Falling back to rep_score only.", exc)
         return [[] for _ in candidates]
+
+    # Handle both {"results": [...]} and bare [...] formats
+    if isinstance(raw_list, dict):
+        raw_list = raw_list.get("results", raw_list.get("headlines", []))
+
+    tagged: dict[int, list[SectorImpact]] = {}
+    for entry in raw_list:
+        eid = entry.get("id", 0)
+        sectors = [
+            SectorImpact(name=s["name"], confidence=min(1.0, max(0.0, float(s.get("confidence", 0.5)))))
+            for s in entry.get("sectors", [])
+            if s.get("name") in VALID_SECTORS
+        ]
+        tagged[eid] = sectors
+
+    result = [tagged.get(i + 1, []) for i in range(len(candidates))]
+    log.info("Pass 1: Tagged %d/%d candidates.", sum(1 for r in result if r), len(candidates))
+    return result
 
 
 def _select_top_n(candidates: list, sector_tags: list[list[SectorImpact]]) -> list:
@@ -385,24 +401,30 @@ def _validate_llm_dict(raw: dict) -> None:
             )
 
 
-def _call_gemini(client, sc: ScoredCluster) -> dict:
+def _call_gemini(client, sc: ScoredCluster, model: str) -> dict:
     """
-    Call Google Gemini Flash with retries. Returns validated raw dict.
+    Call one specific Gemini model with retries. Returns validated raw dict.
     Works on Walmart network — googleapis.com is proxy-whitelisted.
-    Uses google-genai SDK (v1+). Raises RuntimeError if all retries exhausted.
+
+    Raises:
+        DailyQuotaError  — 429 with billing message (daily RPD hit). Caller
+                           should try the next model in GEMINI_MODELS.
+        RuntimeError     — all retries exhausted on transient errors (RPM, 503).
     """
     from google.genai import types as genai_types
 
-    user_msg  = _build_user_message(sc)
+    user_msg    = _build_user_message(sc)
     last_err: Exception | None = None
     full_prompt = f"{SYSTEM_PROMPT}\n\nUSER REQUEST:\n{user_msg}"
 
     for attempt in range(1, MAX_RETRIES + 2):
-        log.info(f"  LLM call attempt {attempt}/{MAX_RETRIES + 1} — "
-                 f"cluster #{sc.rank} ({sc.cluster.size} articles) [Gemini]")
+        log.info(
+            f"  LLM call attempt {attempt}/{MAX_RETRIES + 1} — "
+            f"cluster #{sc.rank} ({sc.cluster.size} articles) [{model}]"
+        )
         try:
             response = client.models.generate_content(
-                model=GEMINI_MODEL,
+                model=model,
                 contents=full_prompt,
                 config=genai_types.GenerateContentConfig(
                     temperature=LLM_TEMPERATURE,
@@ -419,11 +441,28 @@ def _call_gemini(client, sc: ScoredCluster) -> dict:
             if attempt <= MAX_RETRIES:
                 time.sleep(1)
         except Exception as e:
+            err_str = str(e)
+
+            # ── Classify the error before deciding to retry ────────────────
+            # Daily quota: billing message → no retry, failover immediately
+            daily_quota_phrases = (
+                "check your plan and billing",
+                "exceeded your current quota",
+                "billing details",
+            )
+            if any(p in err_str for p in daily_quota_phrases):
+                log.error(
+                    f"  Gemini DAILY QUOTA EXHAUSTED (500 RPD free tier). "
+                    f"Failing over to Groq — not retrying Gemini."
+                )
+                raise DailyQuotaError(err_str)
+
+            # RPM / transient: retry with backoff (15s, 30s)
             last_err = e
             log.warning(f"  Attempt {attempt} API error: {e}")
             if attempt <= MAX_RETRIES:
-                wait = 20 * attempt   # 20s, then 40s — 429 needs a full rate-limit window
-                log.info(f"  Waiting {wait}s before retry...")
+                wait = 15 * attempt   # 15s, then 30s
+                log.info(f"  Waiting {wait}s before retry (RPM limit)...")
                 time.sleep(wait)
 
     raise RuntimeError(
@@ -432,43 +471,7 @@ def _call_gemini(client, sc: ScoredCluster) -> dict:
     )
 
 
-def _call_groq(client, sc: ScoredCluster) -> dict:
-    """
-    Call Groq with retries. Returns validated raw dict.
-    NOTE: blocked on Walmart network — use LLM_PROVIDER=gemini on Walmart WiFi/VPN.
-    Raises RuntimeError if all retries exhausted.
-    """
-    user_msg = _build_user_message(sc)
-    last_err: Exception | None = None
 
-    for attempt in range(1, MAX_RETRIES + 2):
-        log.info(f"  LLM call attempt {attempt}/{MAX_RETRIES + 1} — "
-                 f"cluster #{sc.rank} ({sc.cluster.size} articles) [Groq]")
-        try:
-            resp = client.chat.completions.create(
-                model=GROQ_MODEL,
-                temperature=LLM_TEMPERATURE,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": user_msg},
-                ],
-            )
-            raw_text = resp.choices[0].message.content
-            raw = json.loads(raw_text)
-            _validate_llm_dict(raw)
-            return raw
-
-        except (json.JSONDecodeError, ValueError) as e:
-            last_err = e
-            log.warning(f"  Attempt {attempt} failed: {e}")
-            if attempt <= MAX_RETRIES:
-                time.sleep(1)
-
-    raise RuntimeError(
-        f"All {MAX_RETRIES + 1} Groq attempts failed for cluster #{sc.rank}. "
-        f"Last error: {last_err}"
-    )
 
 
 def _make_mock_event(sc: ScoredCluster, rank: int,
@@ -509,84 +512,118 @@ def enrich_clusters(
     This eliminates the selection bias where step 3's rep-only ranking
     might gate out a highly persona-relevant story.
     """
+    from pipeline.quota_manager import write_quota_exhausted, clear_quota_state
+
     candidates = [sc for sc in trend_result.ranked_clusters if sc.for_llm]
-    _provider_label = "DRY RUN" if dry_run else os.getenv("LLM_PROVIDER", "gemini").upper()
     log.info(
-        f"Step 4: Two-pass enrichment for {len(candidates)} candidates ({_provider_label})"
+        "Step 4: Two-pass enrichment — %d candidates (%s)",
+        len(candidates), "DRY RUN" if dry_run else "Gemini",
     )
 
-    # ── Initialise LLM client ───────────────────────────────────────────────────────
+    # ── Initialise Gemini client ──────────────────────────────────────────────
+    client = None
     if not dry_run:
-        provider = os.getenv("LLM_PROVIDER", "gemini").lower()
-        if provider == "gemini":
-            api_key = os.getenv("GEMINI_API_KEY", "")
-            if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
-                raise EnvironmentError(
-                    "\n\n  ❌  GEMINI_API_KEY not set.\n"
-                    "  1. Get a free key: https://aistudio.google.com/apikey\n"
-                    "  2. Set GEMINI_API_KEY in .env\n"
-                    "  Or run with --dry-run to validate schema only.\n"
-                )
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            log.info(f"Step 4: Provider=gemini ({GEMINI_MODEL})")
-        elif provider == "groq":
-            api_key = os.getenv("GROQ_API_KEY", "")
-            if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
-                raise EnvironmentError(
-                    "\n\n  ❌  GROQ_API_KEY not set.\n"
-                    "  NOTE: Groq blocked on Walmart network — use LLM_PROVIDER=gemini\n"
-                )
-            from groq import Groq
-            client = Groq(api_key=api_key)
-            log.info(f"Step 4: Provider=groq ({GROQ_MODEL})")
-        else:
-            raise EnvironmentError(f"Unknown LLM_PROVIDER='{provider}'.")
-    else:
-        provider = "dry-run"
-        client = None
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        if not api_key or api_key == "PASTE_YOUR_KEY_HERE":
+            raise EnvironmentError(
+                "\n\n  GEMINI_API_KEY not set.\n"
+                "  Get a free key at https://aistudio.google.com/apikey\n"
+                "  Then set GEMINI_API_KEY in .env\n"
+                "  Or run with --dry-run to validate schema only.\n"
+            )
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        log.info("Step 4: Gemini client ready. Model chain: %s", " -> ".join(GEMINI_MODELS))
 
-    # ── Pass 1: Batch sector tagging + persona re-rank ─────────────────────────
+    # ── Model fallback tracker ────────────────────────────────────────────────
+    # Advances through GEMINI_MODELS on DailyQuotaError.
+    # When all tiers exhausted: writes quota_state.json, returns empty brief.
+    # Caller (run_pipeline.py) detects empty brief + quota state and serves cache.
+    _model_idx: list[int] = [0]   # list wrapper so nested fn can mutate
+    _models_tried: list[str] = []
+
+    def _call_with_model_fallback(sc: ScoredCluster) -> dict:
+        """Try each model in GEMINI_MODELS. Raises DailyQuotaError when all exhausted."""
+        while _model_idx[0] < len(GEMINI_MODELS):
+            model = GEMINI_MODELS[_model_idx[0]]
+            try:
+                return _call_gemini(client, sc, model)
+            except DailyQuotaError:
+                _models_tried.append(model)
+                _model_idx[0] += 1
+                if _model_idx[0] < len(GEMINI_MODELS):
+                    next_m = GEMINI_MODELS[_model_idx[0]]
+                    log.warning("  %s quota hit — failing over to %s", model, next_m)
+        write_quota_exhausted(_models_tried)
+        raise DailyQuotaError("All Gemini model tiers exhausted for today")
+
+    # ── Pass 1: Batch sector tagging + persona re-rank ────────────────────────
     if dry_run:
-        # Dry-run: no LLM call, just take the top 5 by rep_score
-        sector_tags = [[SectorImpact(name="Technology", confidence=0.9)]
-                       for _ in candidates]
+        sector_tags = [
+            [SectorImpact(name="Technology", confidence=0.9)] for _ in candidates
+        ]
     else:
-        sector_tags = _batch_sector_tag(client, provider, candidates)
+        sector_tags = None
+        while _model_idx[0] < len(GEMINI_MODELS):
+            model = GEMINI_MODELS[_model_idx[0]]
+            try:
+                sector_tags = _batch_sector_tag(client, model, candidates)
+                break
+            except DailyQuotaError:
+                _models_tried.append(model)
+                _model_idx[0] += 1
+                if _model_idx[0] < len(GEMINI_MODELS):
+                    log.warning("  Pass 1: %s quota hit — trying %s",
+                                model, GEMINI_MODELS[_model_idx[0]])
+
+        if sector_tags is None:
+            write_quota_exhausted(_models_tried)
+            log.warning("Step 4: All Gemini tiers exhausted at Pass 1 — serving cached brief.")
+            return Brief(events=[])
 
     selected = _select_top_n(candidates, sector_tags)
 
-    # ── Pass 2: Full enrichment on the correctly-selected top N ────────────
-    log.info("Pass 2: Full enrichment on %d events…", len(selected))
+    # ── Pass 2: Full enrichment on the correctly-selected top N ──────────────
+    log.info("Pass 2: Full enrichment on %d events...", len(selected))
     events: list[EnrichedEvent] = []
+    all_tiers_exhausted = False
 
     for final_rank, (combined_score, p1_persona, sc, p1_sectors) in enumerate(selected, 1):
+        if all_tiers_exhausted:
+            break
+
         t0 = time.time()
         try:
             if dry_run:
                 event = _make_mock_event(sc, final_rank, p1_sectors)
             else:
-                raw = (
-                    _call_gemini(client, sc) if provider == "gemini"
-                    else _call_groq(client, sc)
-                )
-                # Pass 2 sectors; fall back to Pass 1 tags if LLM returned empty
+                try:
+                    raw = _call_with_model_fallback(sc)
+                except DailyQuotaError:
+                    # quota_state.json already written inside _call_with_model_fallback
+                    log.warning(
+                        "  All Gemini tiers exhausted at event #%d — "
+                        "stopping enrichment, serving partial brief.", final_rank
+                    )
+                    all_tiers_exhausted = True
+                    break
+
                 p2_sectors = [
                     SectorImpact(name=s["name"], confidence=float(s["confidence"]))
                     for s in sorted(
                         raw["sectors_impacted"],
-                        key=lambda x: x["confidence"],
-                        reverse=True,
+                        key=lambda x: x["confidence"], reverse=True,
                     )
                 ] if raw.get("sectors_impacted") else p1_sectors
 
                 if not p2_sectors:
-                    log.warning(f"  #{final_rank}: no sectors from Pass 1 or Pass 2 — defaulting to Technology")
+                    log.warning("  #%d: no sectors — defaulting to Technology", final_rank)
                     p2_sectors = [SectorImpact(name="Technology", confidence=0.5)]
+
                 event = EnrichedEvent(
                     rank=final_rank,
                     trend_score=combined_score,
-                    trend_insight="",  # set below
+                    trend_insight="",
                     event_heading=raw["event_heading"],
                     summary=raw["summary"],
                     why_it_matters=raw["why_it_matters"],
@@ -595,11 +632,9 @@ def enrich_clusters(
                     signal_source="persona",
                 )
 
-            # ── Final score: use Pass 2 sectors (more accurate) ─────────────
+            # Final score: Pass 2 sectors more accurate (full article context)
             p2_score  = _persona_score(event.sectors_impacted)
-            event.trend_score = round(
-                0.70 * sc.repetition_score + 0.30 * p2_score, 4
-            )
+            event.trend_score = round(0.70 * sc.repetition_score + 0.30 * p2_score, 4)
             rep_pct   = int(round(sc.repetition_score * 100))
             pers_pct  = int(round(p2_score * 100))
             total_pct = int(round(event.trend_score * 100))
@@ -608,27 +643,29 @@ def enrich_clusters(
                 f"+ {pers_pct}% persona relevance (30%). "
                 f"Sectors: {', '.join(s.name for s in event.sectors_impacted[:3])}."
             )
-
             elapsed = time.time() - t0
             log.info(
-                f"  #{event.rank} ✓ {elapsed:.1f}s | signal={event.trend_score:.3f} "
-                f"(rep={sc.repetition_score:.2f} persona={p2_score:.2f}) "
-                f"| \"{event.event_heading[:45]}\""
+                "  #%d ✓ %.1fs | signal=%.3f (rep=%.2f persona=%.2f) | \"%s\"",
+                event.rank, elapsed, event.trend_score,
+                sc.repetition_score, p2_score, event.event_heading[:45],
             )
             events.append(event)
 
         except RuntimeError as exc:
-            log.error(f"  #{final_rank} ✗ Skipping — all retries exhausted: {exc}")
+            log.error("  #%d ✗ All retries exhausted — skipping: %s", final_rank, exc)
             continue
 
-        # Small pause between Pass 2 calls to respect Gemini's 15 RPM free tier
-        if final_rank < len(selected):
+        # Brief pause between Pass 2 calls to stay within Gemini RPM
+        if final_rank < len(selected) and not dry_run:
             time.sleep(3)
 
-    brief = Brief(events=events)
-    log.info(f"Step 4: Brief built — {len(events)} events enriched.")
-    return brief
+    # Successful enrichment — clear quota state so next run starts fresh
+    if events and not all_tiers_exhausted:
+        clear_quota_state()
 
+    brief = Brief(events=events)
+    log.info("Step 4: Brief built — %d events enriched.", len(events))
+    return brief
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="M3 — LLM Enrichment")

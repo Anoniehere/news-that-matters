@@ -100,4 +100,8 @@ class Brief(BaseModel):
     events: list[EnrichedEvent]            # 1–5 events, rank-sorted
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     pipeline_version: str = "1.0"
-    is_stale: bool = False                 # M4 sets True if pipeline is overdue
+    is_stale: bool = False                 # True if pipeline is overdue
+    # Quota / cache fields — set by the API layer, not the pipeline
+    last_refreshed_at: Optional[datetime] = None   # when brief was last successfully built
+    next_refresh_at: Optional[datetime] = None     # midnight PT when quota resets (quota only)
+    quota_exhausted: bool = False                  # True = serving cached data due to quota
