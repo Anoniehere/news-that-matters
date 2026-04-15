@@ -1,7 +1,26 @@
-node_modules/
-venv/
-.env
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment — never commit secrets
+.env
+
+# Runtime databases — regenerated on first boot
+*.db
+
+# Pipeline output — transient JSON artifacts
 output/*.json
+
+# AI-generated design assets — too large for git
+Gemini_Generated_Image_*.png
+
+# macOS
 .DS_Store
