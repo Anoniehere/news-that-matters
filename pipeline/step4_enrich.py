@@ -355,8 +355,13 @@ def _validate_llm_dict(raw: dict) -> None:
         raw["why_it_matters"] = " ".join(_why_words[:30]).rstrip(",;") + "."
         log.warning("'why_it_matters' word count trimmed to 30.")
 
-    if not isinstance(raw["sectors_impacted"], list) or len(raw["sectors_impacted"]) == 0:
-        raise ValueError("sectors_impacted must be a non-empty list")
+    if not isinstance(raw["sectors_impacted"], list):
+        raise ValueError("sectors_impacted must be a list")
+
+    if len(raw["sectors_impacted"]) == 0:
+        # Soft warn — caller will fall back to Pass 1 sector tags
+        log.warning("sectors_impacted is empty — will use Pass 1 tags as fallback")
+        return  # skip further sector validation; caller handles it
 
     for s in raw["sectors_impacted"]:
         if not isinstance(s, dict) or "name" not in s or "confidence" not in s:
@@ -417,7 +422,7 @@ def _call_gemini(client, sc: ScoredCluster) -> dict:
             last_err = e
             log.warning(f"  Attempt {attempt} API error: {e}")
             if attempt <= MAX_RETRIES:
-                wait = 5 * attempt   # 5s, then 10s — respect 15 RPM free tier
+                wait = 20 * attempt   # 20s, then 40s — 429 needs a full rate-limit window
                 log.info(f"  Waiting {wait}s before retry...")
                 time.sleep(wait)
 
@@ -565,7 +570,7 @@ def enrich_clusters(
                     _call_gemini(client, sc) if provider == "gemini"
                     else _call_groq(client, sc)
                 )
-                # Pass 2 sectors are more accurate (full article context)
+                # Pass 2 sectors; fall back to Pass 1 tags if LLM returned empty
                 p2_sectors = [
                     SectorImpact(name=s["name"], confidence=float(s["confidence"]))
                     for s in sorted(
@@ -573,7 +578,11 @@ def enrich_clusters(
                         key=lambda x: x["confidence"],
                         reverse=True,
                     )
-                ]
+                ] if raw.get("sectors_impacted") else p1_sectors
+
+                if not p2_sectors:
+                    log.warning(f"  #{final_rank}: no sectors from Pass 1 or Pass 2 — defaulting to Technology")
+                    p2_sectors = [SectorImpact(name="Technology", confidence=0.5)]
                 event = EnrichedEvent(
                     rank=final_rank,
                     trend_score=combined_score,
@@ -611,6 +620,10 @@ def enrich_clusters(
         except RuntimeError as exc:
             log.error(f"  #{final_rank} ✗ Skipping — all retries exhausted: {exc}")
             continue
+
+        # Small pause between Pass 2 calls to respect Gemini's 15 RPM free tier
+        if final_rank < len(selected):
+            time.sleep(3)
 
     brief = Brief(events=events)
     log.info(f"Step 4: Brief built — {len(events)} events enriched.")
