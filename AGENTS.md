@@ -135,25 +135,24 @@ python scripts/test_m1.py
 
 **Test command:**
 ```bash
-python pipeline/step3_score.py
-# Should print: ranked clusters with trend_score, top 7 highlighted
+python scripts/test_m2.py
+# All 9 checks green in ~45s; outputs ranked_clusters.json with 15 candidates
 ```
-**Watch out for:** pytrends rate limiting. Add `time.sleep(2)` between calls.
-PRAW needs a Reddit app credential — check `DECISIONS.md` for env var names.
+**Architecture (ADR-019):** rep_score only — NO pytrends, NO feed_diversity, NO PRAW.
+Step 3 is a cheap pre-filter. Persona scoring happens in step4 Pass 1.
 
-### M3 — Working on `pipeline/step4_enrich.py`
+### M3 — Working on `pipeline/step4_enrich.py` (Two-Pass)
 
-**Test command:**
+**Test commands:**
 ```bash
-python pipeline/step4_enrich.py
-# Should pretty-print the full 5-event brief
+python scripts/test_m3.py --dry-run   # schema validation only, no API key needed
+python scripts/test_m3.py --live      # real two-pass LLM run (needs GEMINI_API_KEY)
 ```
-**Guardrail test:**
-```bash
-pytest tests/test_hallucination_guard.py -v
-# Checks: no financial advice, no invented entities, schema valid
-```
-**Groq API key:** stored in `.env` as `GROQ_API_KEY`. Never hardcode.
+**Two-pass flow:**
+- Pass 1: 1 batch LLM call → sector tags for all 15 candidates → persona re-rank → select top 5
+- Pass 2: 5 full enrichment calls on correct top 5
+**Gemini API key:** stored in `.env` as `GEMINI_API_KEY`. Get from aistudio.google.com (free).
+**Groq fallback:** set `LLM_PROVIDER=groq` in `.env` (off-network only; blocked on Walmart proxy).
 
 ### M4 — Working on `app/`
 
@@ -191,16 +190,16 @@ cd mobile && npx expo start
 ## Anti-Patterns — Never Do These
 
 ```
-❌ Don't call the LLM more than once per event per pipeline run
+❌ Don't call the LLM more than once per event in Pass 2 (Pass 1 is exactly 1 batch call for all candidates)
 ❌ Don't store user data, IPs, device IDs, or any PII
 ❌ Don't make external API calls inside synchronous request handlers
 ❌ Don't catch and silently swallow exceptions — always log
 ❌ Don't hardcode API keys — use .env + python-dotenv
 ❌ Don't truncate articles in the API response (UI truncates, not API)
 ❌ Don't use `any` type in TypeScript
-❌ Don't write components longer than 200 lines — split them
-❌ Don't change LLM temperature above 0.5
 ❌ Don't add features not in the current milestone scope — log to PROGRESS.md backlog
+❌ Don't change LLM temperature above 0.5
+❌ Don't add feed_diversity, pytrends, or PRAW back without a new ADR — they're dead by ADR-019
 ```
 
 ---
@@ -239,12 +238,12 @@ Never force-push. Commit after each exit criterion is met. Roll forward, not bac
 
 ## When You're Stuck
 
-1. **LLM output doesn't match schema** → Check temperature (must be ≤ 0.3); add `json_object` response format to Groq call; increase retry count to 3
-2. **pytrends returns empty** → Topic keyword too specific; try a shorter 2-word phrase; add try/except and default score to 0.0
+1. **LLM output doesn't match schema** → Check temperature (must be ≤ 0.3); add `json_object` response format; increase retry count to 3
+2. **Pass 1 batch returns wrong format** → Check `_batch_sector_tag()` — handles both `[...]` and `{"results": [...]}` shapes; log raw response to debug
 3. **DBSCAN produces 1 giant cluster** → eps too large; reduce to 0.2 and re-test; ensure embeddings are L2-normalized
 4. **Expo can't reach API** → Check API host is `0.0.0.0` not `127.0.0.1`; check device is on same WiFi
-5. **Pipeline takes > 5 min** → Profile step by step; LLM calls usually the bottleneck; check Groq response latency
+5. **Pipeline takes > 5 min** → Profile step by step; LLM calls usually the bottleneck; Pass 1 should be ~3s, Pass 2 ~50s total
 
 ---
 
-*Last updated: 2026-04-08 | Read alongside CONTEXT.md every session*
+*Last updated: 2026-04-15 | Read alongside CONTEXT.md every session*

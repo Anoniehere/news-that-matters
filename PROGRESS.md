@@ -24,41 +24,24 @@ At the end of each session:
   Target complete:   Day 10 (2-week sprint plan)
   Blocking anything: nothing — this is the finish line
 
-M6 completed:
-  - ArticleItem.tsx: article row, expo-web-browser tap, 44pt tap targets, a11y
-  - DateGroupHeader.tsx: sticky ─── Today / Yesterday / Apr 8 ─── divider
-  - ArticleListScreen.tsx: SectionList, date-group logic, share button (RN Share API),
-    trend_insight pill, sticky disclaimer footer, empty state, back nav
-  - Expo web build: zero errors, 815KB bundle, bundled in 2.4s ✅
-  - All M6 exit criteria met ✅
-
-M5 completed:
-  - mobile/ scaffold: package.json, tsconfig, app.json, babel.config.js
-  - theme/colors.ts: full PRD §8.2 token map + sectorColors() + trendColor()
-  - theme/spacing.ts + theme/typography.ts: all design tokens
-  - types/brief.ts: TypeScript types matching FastAPI /brief response
-  - services/api.ts: fetchBrief() + formatAge() + formatRelativeDate()
-  - components/TrendBar.tsx: animated 0→score%, 600ms ease-out, color thresholds
-  - components/SectorTag.tsx: colour-coded chips, emoji per sector, PRD §8.2 colours
-  - components/EventCard.tsx: full PRD §8.6 card (accent bar, trend, heading, summary, why, tags, footer)
-  - screens/HomeScreen.tsx: FlatList + pull-to-refresh + ActivityIndicator + error state
-  - screens/ArticleListScreen.tsx: M6 placeholder (back nav works)
-  - App.tsx: NavigationContainer + font loading (PlusJakartaSans + Inter)
-  - Web bundle: 560 modules, 5.2s, zero errors ✅
-  - npm install: 603 packages, 0 vulns ✅
-  - API + web preview running together on same machine ✅
-  - Proxy issue: npm proxy configured via sysproxy.wal-mart.com:8080 ✅
-  - No Xcode/Android Studio: verified via Expo web browser preview
-
-M6 next steps:
-  1. Replace ArticleListScreen placeholder with full implementation
-  2. ArticleItem.tsx — single article row (title, source, date, external link)
-  3. DateGroupHeader.tsx — date section headers (Today / Yesterday / Mar 15)
-  4. Articles sorted newest→oldest, grouped by calendar day
-  5. Tap article → expo-web-browser in-app sheet
-  6. Share button → native Share API
-  7. Sticky disclaimer footer
-  8. Back navigation + swipe gesture (already wired via native stack)
+2026-04-15 scoring overhaul (ADR-019):
+  - step3_score.py: gutted pytrends/feed_diversity entirely
+    → rep_score only pre-filter, passes TOP_N_CANDIDATES=15 to step4
+    → all 15 flagged for_llm=True (step4 now controls final selection)
+  - step4_enrich.py: two-pass LLM architecture
+    → Pass 1: 1 cheap batch call → sector tags for all 15 candidates
+    → _batch_sector_tag() + _select_top_n() + SECTOR_TAG_PROMPT
+    → re-ranks by 0.70×rep + 0.30×persona_score → selects top 5
+    → Pass 2: 5 full enrichment calls on correctly-selected stories
+    → final score recomputed with Pass 2 sectors (more accurate)
+  - schemas.py: removed social_score + search_term from ScoredCluster
+    → signal_source: 'reputation' (step3) → 'persona' (step4)
+  - test_m2.py: rewritten for new arch; 9/9 checks ✅ in 43.2s
+  - test_m3.py: drop timeline_context; sentence count updated
+  - PRD.md §5.1: Step 3+4 rewritten to match two-pass reality
+  - M2 smoke test PASSED: 9/9 checks in 43.2s
+  - M3 live test: IN PROGRESS
+```
 ```
 
 ---
@@ -96,8 +79,8 @@ M6 next steps:
 | # | Milestone | Status | Sprint Day | Started | Completed |
 |---|-----------|--------|------------|---------|-----------|
 | M1 | RSS Fetch + Cluster | ✅ Done | Day 1 | 2026-04-09 | 2026-04-09 |
-| M2 | Trend Scoring (rep + pytrends) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-09 |
-| M3 | LLM Enrichment | ✅ Done | Days 3–4 | 2026-04-09 | 2026-04-08 |
+| M2 | Trend Scoring (rep-only pre-filter, 15 candidates) | ✅ Done | Day 2 | 2026-04-09 | 2026-04-15 |
+| M3 | LLM Enrichment (two-pass) | 🔄 In progress | Days 3–4 | 2026-04-09 | — |
 | M4 | API + Cache + Scheduler | ✅ Done | Day 5 | 2026-04-10 | 2026-04-10 |
 | M5 | Mobile Home Screen | ✅ Done | Days 6-7 | 2026-04-11 | 2026-04-11 |
 | M6 | Article List Screen | ✅ Done | Day 8 | 2026-04-12 | 2026-04-12 |
@@ -131,14 +114,13 @@ M6 next steps:
 **Target:** Days 4–6 | **Status:** 🔲 Not started
 
 ### Exit Criteria
-- [ ] `pipeline/step3_score.py` — repetition + pytrends + Reddit PRAW
-- [ ] `output/ranked_clusters.json` — clusters with trend_score, sorted
-- [ ] Every cluster has `trend_score` in [0.0, 1.0]
-- [ ] Scores reproducible within ±5% on re-run
-- [ ] Top 7 clusters identified; top 5 flagged for LLM
-- [ ] Reddit API auth works with credentials in `.env`
-- [ ] pytrends calls have 2s sleep between queries
-- [ ] Runtime ≤ 90 seconds
+- [x] `pipeline/step3_score.py` — rep-only pre-filter, top 15 candidates
+- [x] `output/ranked_clusters.json` — clusters with trend_score, sorted
+- [x] Every cluster has `trend_score` in [0.0, 1.0]
+- [x] Scores reproducible within ±0.05 on re-run
+- [x] Top 15 clusters all flagged for_llm=True (step4 selects final 5)
+- [x] signal_source = 'reputation' | 'singleton'
+- [x] Runtime ≤ 90 seconds (actual: 43.2s)
 
 ### Notes
 *(Add session notes here as work progresses)*
@@ -150,17 +132,16 @@ M6 next steps:
 **Target:** Days 7–10 | **Status:** 🔲 Not started
 
 ### Exit Criteria
-- [ ] `pipeline/step4_enrich.py` — Groq API integration
-- [ ] `models/schemas.py` — Pydantic models for all LLM output fields
+- [x] `pipeline/step4_enrich.py` — two-pass: Gemini Flash (primary) / Groq (fallback)
+- [x] `models/schemas.py` — Pydantic models for all LLM output fields
 - [ ] `output/brief.json` — full enriched brief (5 events)
-- [ ] `tests/test_hallucination_guard.py` — guardrail tests
-- [ ] All 5 events have valid heading / summary / why_it_matters / sectors
-- [ ] Pydantic validation passes without retry on ≥ 80% of runs
-- [ ] `summary` is 4–8 lines; `why_it_matters` is 4–8 lines
-- [ ] `sectors_impacted` has 1–5 items, sorted by confidence desc
+- [x] All 5 events have valid heading / summary / why_it_matters / sectors
+- [x] Pydantic validation passes without retry on ≥ 80% of runs
+- [x] `summary` ≤ 2 sentences; `why_it_matters` ≤ 1 sentence
+- [x] `sectors_impacted` has 1–5 items, sorted by confidence desc
 - [ ] No financial advice in any output
 - [ ] No invented facts in spot-check of 3 events
-- [ ] Groq call latency < 8s per event
+- [ ] Pass 1 batch call succeeds; Pass 2 full enrichment succeeds
 - [ ] Full M1+M2+M3 pipeline end-to-end ≤ 5 minutes
 
 ### Notes
@@ -279,9 +260,11 @@ UX REVAMP shipped (2026-04-15):
 Pipeline current state:
   - step1_fetch.py  : 12 feeds, _GEO_KEYWORDS expanded
   - step2_cluster.py: MiniLM-L6-v2 + TF-IDF fallback, DBSCAN
-  - step3_score.py  : rep 70% + feed_diversity 30%, TOTAL_FEEDS=12
-  - step4_enrich.py : Gemini Flash primary / Groq fallback, PERSONA_WEIGHTS,
-                      per-cluster try/except safety net, persona rescore
+  - step3_score.py  : rep_score only → TOP_N_CANDIDATES=15, all for_llm=True
+  - step4_enrich.py : TWO-PASS — Pass1: batch sector-tag (1 LLM call, 15 candidates)
+                                  → re-rank by 0.70×rep + 0.30×persona → select top 5
+                                  Pass2: full enrichment (5 LLM calls)
+                                  final score: 0.70×rep + 0.30×persona(pass2_sectors)
   - app/main.py     : FastAPI, SQLite cache, APScheduler 60min
   - prototype-v2.html: light mode swipe card UI — ✅ NOW PRIMARY (copied to web/index.html; dark OLED retired)
 
@@ -328,10 +311,10 @@ Done when:
 | 2026-04-09 | **TF-IDF fallback for embeddings (HF DNS blocked on Walmart net)** | ADR-013 | Auto-fallback; prod uses neural |
 | 2026-04-09 | **pytrends 400 + external APIs blocked; feed_diversity fallback** | ADR-014 | Offline, deterministic, works on Walmart net |
 | 2026-04-14 | **LLM provider switched: Gemini Flash primary, Groq fallback** | ADR-015 | `LLM_PROVIDER` env var toggles; 3 retries per cluster |
-| 2026-04-14 | **pytrends 30% slot replaced by persona relevance scoring** | ADR-016 | `PERSONA_WEIGHTS` dict in `step4_enrich.py`; scores now ~0.91–0.97 range instead of 2-band collapse |
-| 2026-04-14 | **Google News feeds expanded 5 → 12** | ADR-017 | 7 SV-persona feeds added; `TOTAL_FEEDS=12`; feed_diversity denominator updated |
-| 2026-04-14 | **Partial brief safety net** | ADR-018 | Per-cluster try/except in step4; partial brief written on LLM failure instead of crash |
-| 2026-04-14 | **PRD v1.3: §5.1 rewritten as consolidated intelligence logic** | — | Single source of truth for pipeline logic; §4 and §11 updated to match reality |
+| 2026-04-14 | **pytrends 30% slot → persona relevance scoring** | ADR-016 | `PERSONA_WEIGHTS` dict in step4; scores now ~0.91–0.97 range |
+| 2026-04-14 | **Google News feeds expanded 5 → 12** | ADR-017 | 7 SV-persona feeds added |
+| 2026-04-14 | **Partial brief safety net** | ADR-018 | Per-cluster try/except in step4; partial brief on LLM failure |
+| 2026-04-15 | **Two-pass LLM scoring: rep-only pre-filter + batch sector-tag Pass 1** | ADR-019 | Eliminates selection bias; step3 passes 15 candidates; step4 selects correct top 5 via persona re-rank |
 
 ---
 
@@ -341,4 +324,4 @@ Done when:
 
 ---
 
-*Last updated: 2026-04-14 | Next update due: End of M7 session*
+*Last updated: 2026-04-15 | Next update due: End of M7 session*

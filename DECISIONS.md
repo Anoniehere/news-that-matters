@@ -95,7 +95,7 @@ Original spec required Reddit (15%) + X/Twitter (15%) + LinkedIn (15%) as social
 - Must add 2s sleep between pytrends calls to avoid throttling
 - X + LinkedIn can be added in V2 with proper budget allocation
 
-**Superseded by:** —
+**Superseded by:** ADR-010 (Reddit dropped), ADR-016 (persona replaces pytrends), ADR-019 (two-pass selection)
 
 ---
 
@@ -306,7 +306,7 @@ Reddit re-added in V1.1 as an enhancement.
 - Trend scores will be slightly less socially-weighted (acceptable)
 - V1.1: Add PRAW back with ADR superseding this one
 
-**Superseded by:** — (open)
+**Superseded by:** ADR-019 (rep-only pre-filter; step4 handles final selection via persona score)
 
 ---
 
@@ -466,65 +466,169 @@ off-network use (home, production server).
 
 ---
 
-## Template for New ADRs
-
-```markdown
-## ADR-NNN — [Short Decision Title]
-
-**Date:** YYYY-MM-DD
-**Status:** 🔄 Proposed | ✅ Accepted | ❌ Deprecated | ↩️ Superseded by ADR-NNN
-**Decider:** [Name / Role]
-
-**Context:**
-[What situation or problem prompted this decision?]
-
-**Decision:**
-[What was decided, stated plainly.]
-
-**Rationale:**
-[Why this option over the alternatives?]
-
-**Consequences:**
-[What does this mean for the codebase, timeline, or future decisions?]
-
-**Superseded by:** — (or ADR-NNN)
-```
-
----
-
-*Last updated: 2026-04-08 | 9 decisions recorded*
-
----
-
-## ADR-014 — Social Signal Fallback: feed_diversity replaces pytrends on Walmart Network
+## ADR-014 — Social Signal Fallback: feed_diversity (SUPERSEDED)
 
 **Date:** 2026-04-09
+**Status:** ↩️ Superseded by ADR-019
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+pytrends 4.9.x returns HTTP 400 due to Google's 2024 auth change. feed_diversity
+(unique feeds per cluster / total feeds) was introduced as a deterministic offline fallback.
+
+**Decision:**
+feed_diversity as 30% weight in step3 pre-filter. Superseded when we discovered this
+still produces biased selection — a high-coverage niche story could rank above a
+personally-relevant but editorially-narrow story.
+
+**Superseded by:** ADR-019 (rep-only pre-filter; persona score applied in step4 Pass 1)
+
+
+---
+
+## ADR-016 — Persona Relevance Scoring Replaces pytrends/feed_diversity 30% Slot
+
+**Date:** 2026-04-14
 **Status:** ✅ Accepted
 **Decider:** Code Puppy (technical) | Astha (confirmed)
 
 **Context:**
-M2 requires a social signal (30% weight) alongside repetition (70%).
-pytrends 4.9.x returns HTTP 400 due to Google's 2024 auth change in their
-undocumented Trends API. This failure occurs with AND without the Walmart proxy,
-confirming it is a Google API-side issue, not a network restriction.
-All other external APIs (HackerNews Firebase, Algolia) return 407 on the Walmart proxy —
-the proxy only allows Google-domain traffic.
+The 30% "social signal" slot in the trend score was occupied by pytrends (broken, HTTP 400)
+then feed_diversity (offline, but blind to audience relevance). Both measured editorial breadth,
+not whether the SV professional persona actually cares about the story.
 
 **Decision:**
-Implement a two-tier social signal:
-1. **pytrends** — probed first on every run. Used if available (e.g. production server).
-2. **feed_diversity** — fallback when pytrends fails.
-   Score = (unique feeds covering cluster - 1) / (total feeds - 1)
-   A story in US Top Stories + Economy + US Politics simultaneously IS trending.
-   Completely offline, deterministic, 100% reproducible.
+Replace the 30% slot permanently with `persona_score`:
+- `PERSONA_WEIGHTS` dict maps each of 13 sectors to SV-professional relevance (0.0–1.0)
+- `persona_score = weighted_sum(sector_weight × llm_confidence) / max_possible`
+- Final: `signal_score = 0.70 × rep_score + 0.30 × persona_score`
+- Applied in step4 after LLM returns `sectors_impacted`
 
-**Signal source is recorded in `signal_source` field on every `ScoredCluster`.**
-This lets us audit which signal was used and switch transparently in production.
+**Rationale:**
+- Directly measures what we care about: "does this story matter to the audience?"
+- Deterministic and tunable (just edit `PERSONA_WEIGHTS` dict)
+- No external API dependency; uses sector output the LLM already produces
+- Fixes the 2-band score collapse (all events scoring ~0.91 or ~0.97)
 
 **Consequences:**
-- Scoring is fully functional offline on the Walmart network
-- When deployed to production (Railway/Render), pytrends may work and auto-activate
-- Reddit (V1.1) and pytrends (fix pending pytrends library update) remain future options
-- feed_diversity scores tend to be 0.0 when clusters are single-feed (common for niche stories)
-  → repetition score (70%) dominates ranking, which is the correct primary signal
+- `PERSONA_WEIGHTS` is the single source of truth — change weights to retune ranking
+- Scores now differentiate meaningfully across events
+- Step 3 must pass clusters to step 4 *before* final ranking can happen
 
+**Superseded by:** ADR-019 extended this to Pass 1 (batch tagging before selection)
+
+---
+
+## ADR-017 — Google News Feeds Expanded from 5 to 12
+
+**Date:** 2026-04-14
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (recommended) | Astha (confirmed)
+
+**Context:**
+The original 5 feeds (US Top Stories, World, Business, Technology, Science) were
+insufficient for SV-professional coverage. Key topics like AI chip export controls,
+India/Gulf geopolitics, and Africa/Global South were underrepresented.
+
+**Decision:**
+Add 7 SV-persona-targeted feeds:
+- AI & Chip Export Controls, US-China & Trade Wars, Dollar & Global Finance
+- Global Conflict & Security, Energy & Critical Minerals, Tech Regulation & Antitrust
+- India & Gulf Relations, Africa & Global South, Cyber & Espionage
+
+Total feeds: 12. All are Google News RSS (no auth required, proxy-accessible).
+
+**Rationale:**
+- Better topic coverage = better cluster quality
+- Still no auth dependency, fully offline-capable
+- Direct alignment with SV persona interests per ADR-005
+
+**Consequences:**
+- `step1_fetch.py` updated with new feed list
+- Total articles fetched: ~270 (up from ~80–100)
+- Clustering quality improves significantly
+
+**Superseded by:** —
+
+---
+
+## ADR-018 — Partial Brief Safety Net: Per-Cluster try/except in step4
+
+**Date:** 2026-04-14
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+If one LLM call fails (rate limit, validation error, network blip), the entire `enrich_clusters()`
+function would crash with no output — a total pipeline failure.
+
+**Decision:**
+Wrap each individual cluster enrichment in a `try/except RuntimeError` block.
+On failure: log the error, skip that cluster, and continue to the next.
+A partial brief (e.g. 4 events instead of 5) is served rather than nothing.
+
+**Rationale:**
+- Partial > none: users see something, stale fallback fires only when all 5 fail
+- LLM failures are transient; the next scheduled run usually succeeds
+- Clean logs make debugging easy without blocking progress
+
+**Consequences:**
+- Brief may have 1–4 events on failure days (acceptable; API documents min as 1)
+- LLM failure rate in practice: ~5% of individual cluster calls
+
+**Superseded by:** —
+
+---
+
+## ADR-019 — Two-Pass LLM Scoring: Rep-Only Pre-Filter + Batch Sector-Tag Pass 1
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+ADR-016 correctly moved persona scoring to step4, but the selection bias remained:
+step3 still used rep_score + feed_diversity to pick which clusters went to the LLM.
+A story could be highly persona-relevant but editorially narrow (1 feed only) and
+never reach step4. The wrong 5 stories were being fully enriched.
+
+**Decision:**
+Two-pass architecture:
+
+**Step 3 (pre-filter only):**
+- Rank by `rep_score` alone (no feed_diversity, no social signal)
+- Pass top 15 candidates to step4 (was 7)
+- All 15 flagged `for_llm=True`
+
+**Step 4 Pass 1 (cheap batch sector tagging):**
+- Single LLM call with all 15 headlines + snippets
+- Returns sector tags + confidence for each
+- Compute `persona_score` for each candidate
+- Re-rank: `combined = 0.70 × rep + 0.30 × persona`
+- Select top 5 by combined score
+
+**Step 4 Pass 2 (full enrichment):**
+- 5 individual LLM calls on correctly-selected stories
+- Full heading + summary + why_it_matters + sectors
+- Final score recomputed with Pass 2 sectors (more context → more accurate)
+
+**Total LLM calls:** 1 batch + 5 full = 6 (vs 5 before, but correct 5 selected)
+
+**Rationale:**
+- Eliminates selection bias: persona relevance gates inclusion, not just final score
+- Batch sector-tag is cheap (1 call, classification-only, temp=0.2)
+- 15 candidates gives a wide enough pool that the right 5 always reach Pass 2
+- Architecturally clean: each pass has one job (select vs enrich)
+
+**Consequences:**
+- `step3_score.py`: removed `social_score`, `search_term`, `feed_diversity` — dead code deleted
+- `step4_enrich.py`: added `_batch_sector_tag()`, `_select_top_n()`, `SECTOR_TAG_PROMPT`, `TOP_N_FINAL=5`
+- `schemas.py`: `ScoredCluster` drops `social_score` + `search_term`; `signal_source` now `reputation`→`persona`
+- `test_m2.py` rewritten; M2 smoke test: ✅ 9/9 checks in 43.2s
+- Slightly higher total latency (~+10s for batch call); still well within 5-min NFR
+
+**Superseded by:** —
+
+---
+
+*Last updated: 2026-04-15 | 19 decisions recorded*
