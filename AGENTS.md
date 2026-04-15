@@ -25,8 +25,17 @@ Every session, before closing:
    Do this now — not next session.
 2. **`PROGRESS.md`** — update milestone status, check off completed exit criteria,
    and write the "Next Session: Start Here" block.
-3. **Commit** — `docs(progress): update M[N] status — [what was done]`.
+3. **`CONTEXT.md`** — update tech stack, architecture diagram, or file structure
+   if anything changed. This is the first file read next session — if it's wrong,
+   the AI starts with wrong assumptions.
+4. **`AGENTS.md`** — update if any convention, command, or anti-pattern changed
+   (e.g. a provider was removed, a port changed, a shebang broke).
+5. **Commit** — `docs(progress): update M[N] status — [what was done]`.
    Never end a session without committing updated docs.
+
+> ⚠️ **Do NOT wait to be asked.** Updating docs is part of the work, not a bonus step.
+> If a significant change happens mid-session (new module, deleted provider, UX decision),
+> update the relevant doc immediately — don't batch it to the end.
 
 ---
 
@@ -84,7 +93,7 @@ extract them. If a file grows past 200 lines, it's doing too much.
 ### Backend
 - Unit test each pipeline step independently with fixture data
 - Fixture data lives in `tests/fixtures/` — real sample RSS XML + cluster JSON
-- Never call real external APIs in unit tests — mock PRAW, pytrends, Groq
+- Never call real external APIs in unit tests — mock Gemini API calls
 - API smoke tests (`tests/test_api.py`) MAY call the running local server
 - Test file mirrors source: `pipeline/step1_fetch.py` → `tests/test_step1_fetch.py`
 
@@ -151,21 +160,30 @@ python scripts/test_m3.py --live      # real two-pass LLM run (needs GEMINI_API_
 **Two-pass flow:**
 - Pass 1: 1 batch LLM call → sector tags for all 15 candidates → persona re-rank → select top 5
 - Pass 2: 5 full enrichment calls on correct top 5
-**Gemini API key:** stored in `.env` as `GEMINI_API_KEY`. Get from aistudio.google.com (free).
-**Groq fallback:** set `LLM_PROVIDER=groq` in `.env` (off-network only; blocked on Walmart proxy).
+**LLM chain:** `gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash` (all same `GEMINI_API_KEY`).
+**Quota:** if all 3 models hit daily limit → `output/quota_state.json` written; scheduler skips.
+  Clear manually: `rm -f output/quota_state.json` (resets after midnight PT automatically).
+**Groq:** REMOVED (ADR-020). `groq.com` is blocked on Walmart VPN. Do not re-add.
 
 ### M4 — Working on `app/`
 
-**Test command:**
+**Start server (⚠️ use `python -m uvicorn`, NOT `.venv/bin/uvicorn` — shebang is broken):**
 ```bash
-uvicorn app.main:app --reload &
+.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 &
 python tests/test_api.py
 # Should: GET /brief returns 200, schema valid, second call faster
 ```
 **Verify cache is working:**
 ```bash
-time curl -s localhost:8000/brief > /dev/null  # first call
-time curl -s localhost:8000/brief > /dev/null  # second call — must be faster
+time curl -s localhost:8001/brief > /dev/null  # first call
+time curl -s localhost:8001/brief > /dev/null  # second call — must be faster
+```
+**Routes:**
+```
+GET /           → web/index.html     (dark OLED UI)
+GET /prototype  → output/prototype-v2.html  (light mode prototype — NOT the same file)
+GET /brief      → cached JSON brief
+GET /health     → {"status": "ok", "ts": "..."}
 ```
 
 ### M5 — Working on `mobile/`
@@ -208,13 +226,15 @@ cd mobile && npx expo start
 
 ```bash
 # .env (never commit this file)
-GROQ_API_KEY=gsk_...
-REDDIT_CLIENT_ID=...
-REDDIT_CLIENT_SECRET=...
-REDDIT_USER_AGENT=news-that-matters/1.0 by /u/yourusername
+GEMINI_API_KEY=...          # Required. aistudio.google.com (free tier)
 DATABASE_URL=sqlite:///./news_that_matters.db
 PIPELINE_INTERVAL_MINUTES=60
 LOG_LEVEL=INFO
+
+# These are dead / removed — ignore if present in .env:
+# GROQ_API_KEY   — Groq removed (ADR-020); groq.com blocked on Walmart VPN
+# LLM_PROVIDER   — removed; Gemini chain is the only provider
+# REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET — PRAW dropped (ADR-010)
 ```
 
 ---
