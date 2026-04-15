@@ -1,5 +1,5 @@
 # 📰 News That Matters — Product Requirements Document
-**Version:** 1.3 | **Status:** In Development | **Date:** 2026-04-14
+**Version:** 1.4 | **Status:** In Development | **Date:** 2026-04-14
 **Author:** PM Session w/ Code Puppy 🐶
 
 | Version | Date | Summary |
@@ -7,7 +7,8 @@
 | 1.0 | 2026-04-07 | Initial PRD |
 | 1.1 | 2026-04-08 | Milestone delivery plan; full event cards on home screen; §8 UX specs |
 | 1.2 | 2026-04-10 | Scope cuts: pytrends → feed_diversity fallback (ADR-014); Reddit dropped (ADR-010); TF-IDF fallback for embeddings (ADR-013) |
-| 1.3 | 2026-04-14 | **Scoring overhaul shipped:** pytrends fully replaced by persona relevance scoring; Google News feeds expanded 5 → 12; §5.1 rewritten as consolidated intelligence logic; LLM provider updated (Gemini Flash primary, Groq fallback); partial-brief safety net added |
+| 1.3 | 2026-04-14 | Scoring overhaul shipped: 12 feeds, persona relevance replaces pytrends, §5.1 consolidated intelligence logic |
+| 1.4 | 2026-04-14 | Accuracy pass: fixed wrong eps values in §5.1, stale sector color map in §8.2, dropped pytrends/Reddit from §9/§13/§14, closed answered questions in §12 |
 
 ---
 
@@ -80,9 +81,9 @@ There is no product that gives you **trend signal + causal depth + sector impact
 | Real-time vs <10s | ✅ **Background cache** refreshes every hour. User sees cached results in <1s. "Last updated X min ago" shown. Pull-to-refresh triggers async re-run. |
 | Social signals (X/LinkedIn) | ❌ Dropped. X API costs $100+/mo. LinkedIn has no public search API. |
 | Reddit signals | ❌ Dropped for MVP (ADR-010). Too much integration time in a 2-week sprint. V1.1 backlog. |
-| Google Trends / pytrends | ❌ Dropped (ADR-014). Blocked on Walmart network; externally it 400s under load. Replaced by persona relevance scoring (see §5.1 Step 5). |
+| Google Trends / pytrends | ❌ Dropped (ADR-014). Blocked on Walmart network; externally it 400s under load. Replaced by persona relevance scoring (see §5.1 Step 4b). |
 | News feed count | ✅ **12 Google News RSS feeds** (5 core geopolitics + 7 SV-persona feeds). Up from original 5. |
-| Trend scoring formula | ✅ `0.70 × repetition_score + 0.30 × persona_score`. Persona score uses sector weights calibrated to the SV professional archetype. Replaces the dead pytrends 30% slot. |
+| Trend scoring formula | ✅ Two-stage. Step 3 computes `0.70 × repetition_score + 0.30 × feed_diversity_score` to select top 7 for LLM. Step 4b replaces the 30% slot with `persona_score` once sectors are known, producing the final signal score. |
 | Persona system | ✅ **Hardcoded Silicon Valley archetype** for MVP. Tunable via `PERSONA_WEIGHTS` dict in `step4_enrich.py`. Preset personas in V2. |
 | Authentication | ✅ **No auth in MVP.** Fully anonymous. No PII collected. |
 | LLM Provider | ✅ **Google Gemini Flash** (primary, free tier). **Groq llama-3.3-70b-versatile** as fallback. Provider toggled via `LLM_PROVIDER` env var. |
@@ -135,18 +136,18 @@ There is no product that gives you **trend signal + causal depth + sector impact
 
 | Feed | Coverage focus |
 |------|---------------|
-| US Top Stories | Broad domestic signal |
-| Technology | General tech news |
-| US Politics | Policy, executive branch |
-| Economy | Markets, trade, macro |
-| AI & Science | Research, AI policy |
-| AI & Chip Export Controls | Semiconductor geopolitics (new) |
-| Dollar & Global Finance | FX, central banks, rates (new) |
-| Energy & Critical Minerals | Lithium, cobalt, oil, OPEC (new) |
-| India & Gulf Relations | Emerging market diplomacy (new) |
-| Cyber & Espionage | State-sponsored attacks, hacks (new) |
-| Africa & Global South | Belt & Road, development finance (new) |
-| Tech Regulation & Antitrust | FTC, EU, data sovereignty (new) |
+| US Geopolitics & Diplomacy | State dept, bilateral relations, foreign policy |
+| US-China & Trade Wars | Tariffs, chip controls, decoupling |
+| Global Conflict & Security | Armed conflict, ceasefires, military movements |
+| International Trade & Sanctions | WTO, embargoes, supply chain disruption |
+| US National Security | Pentagon, intelligence community, NSC |
+| AI & Chip Export Controls | Semiconductor geopolitics, BIS rules |
+| Dollar & Global Finance | FX, central banks, IMF, rates |
+| Energy & Critical Minerals | Lithium, cobalt, oil, OPEC |
+| India & Gulf Relations | Emerging market diplomacy |
+| Cyber & Espionage | State-sponsored attacks, hacks |
+| Africa & Global South | Belt & Road, development finance |
+| Tech Regulation & Antitrust | FTC, EU, data sovereignty |
 
 **Filtering (applied to every article before it leaves Step 1):**
 1. `published_at` ≤ 4 days old (stale news gets dropped)
@@ -167,7 +168,7 @@ There is no product that gives you **trend signal + causal depth + sector impact
 - Each article is embedded as: `title + " " + first 2 paragraphs of body_snippet`
 
 **Clustering algorithm:** DBSCAN
-- `eps = 0.3` (cosine distance threshold — articles within 30% of each other are co-clustered)
+- `eps = 0.65` (cosine distance threshold for neural embeddings — articles within ~79% cosine similarity are co-clustered). TF-IDF fallback uses `eps = 1.00` (looser — compensates for weaker keyword-only signal)
 - `min_samples = 2` (a cluster requires ≥ 2 articles; singletons are not promoted to events)
 - Singletons (noise points in DBSCAN) are retained as low-priority candidates but flagged separately
 - Each cluster elects a **headline article**: the article with the highest `body_snippet` length (most content-rich)
@@ -177,13 +178,15 @@ There is no product that gives you **trend signal + causal depth + sector impact
 ---
 
 #### Step 3 — SCORE (`pipeline/step3_score.py`)
-*Goal: rank clusters by objective signal strength. Higher score = more newsworthy by volume.*
+*Goal: rank clusters by objective signal strength to select the top 7 candidates for LLM enrichment.*
 
-**Scoring formula (pre-LLM):**
+**Pre-LLM selection formula** (used only to pick which clusters go to the LLM — not the final user-facing score):
 
 ```
-trend_score = 0.70 × repetition_score + 0.30 × feed_diversity_score
+selection_score = 0.70 × repetition_score + 0.30 × feed_diversity_score
 ```
+
+> **Why not the final score?** Persona relevance requires `sectors_impacted`, which the LLM hasn’t produced yet. Step 3 is a best-available proxy; Step 4b computes the true final score.
 
 **`repetition_score`** (70% weight) — *How many articles cover this event?*
 ```
@@ -243,13 +246,15 @@ sectors_impacted   : list[SectorImpact]   1–5 items, sorted by confidence desc
 `Labour & Employment`, `Manufacturing`, `Agriculture`, `Healthcare`, `Education`,
 `Media & Entertainment`, `Retail & E-commerce`, `Real Estate`
 
-**4b — Persona Recomputation (after LLM returns sectors)**
+**4b — Persona Scoring (after LLM returns sectors)**
 
-Once the LLM has returned `sectors_impacted` with real confidence scores, the Step 3 `trend_score` is **replaced** with a persona-weighted final score:
+Once `sectors_impacted` exist, the **final signal score** is computed and written to each event:
 
 ```
-final_signal_score = 0.70 × repetition_score + 0.30 × persona_score
+signal_score = 0.70 × repetition_score + 0.30 × persona_score
 ```
+
+This uses the same 70/30 structure as Step 3 but swaps `feed_diversity_score` for `persona_score` now that sectors are known. The Step 3 `selection_score` is discarded — `signal_score` is the only score persisted to the DB and served via the API.
 
 `persona_score` is computed from `PERSONA_WEIGHTS` — a single-source-of-truth dict mapping each sector to its relevance weight for the Silicon Valley professional archetype:
 
@@ -276,20 +281,9 @@ max_possible = sum(top_N weights)   # N = number of sectors returned
 persona_score = clamp(raw / max_possible, min=0.15, max=1.0)
 ```
 
-**Why replace Step 3’s 30% slot instead of adding a new dimension?**
-Step 3 cannot use persona scoring because the LLM hasn’t run yet — we don’t know the sectors. Step 4 has the sectors. The formula structure (0.70/0.30) stays identical; only the 30% component changes from a dead proxy (pytrends) to a live audience signal.
+**Result:** `signal_score` range in practice: ~0.91–0.97 (all top events compress toward the top since they’re all high-rep + persona-relevant).
 
-**Result — score distribution for today’s brief (sample):**
-```
-#5  Middle East Tensions / Dollar story  → 0.9614  (persona=0.87 — Finance+Tech+Policy)
-#1  India Balanced Diplomacy             → 0.9493  (persona=0.83 — Tech+Policy+Finance)
-#3  Trump-China Tariffs                  → 0.9336  (persona=0.78 — Tech+Manufacturing+Policy)
-#2  US-Iran Negotiations                 → 0.9100  (persona=0.70 — Finance+Policy+Defence)
-```
-
-*Before this change, all clusters collapsed into two score bands: 0.70 or 0.28.*
-
-**Output:** `output/brief.json` — `Brief` object with `events[]`, each containing the full enriched card data + persona-scored `trend_score` + `trend_insight` string.
+**Output:** `output/brief.json` — `Brief` object with `events[]`, each containing the full enriched card data + `signal_score` + `trend_insight` string.
 
 ---
 
@@ -348,12 +342,8 @@ class Event(BaseModel):
     cluster_article_count: int
 
 class SectorImpact(BaseModel):
-    id: int
-    event_id: int             # FK → Event
-    sector_name: str
-    confidence_score: float   # 0.0–1.0
-    one_line_reason: str
-    display_order: int        # 1 = highest confidence
+    name: str           # from 13-sector vocab (see §5.1 Step 4a)
+    confidence: float   # 0.0–1.0 — LLM's certainty this sector is affected
 
 class Article(BaseModel):
     id: int
@@ -465,20 +455,23 @@ Manual pipeline trigger. Rate-limited: 1 call / 30 minutes.
   (accent tokens unchanged)
 ```
 
-**Sector Tag Color Map** (consistent across all events):
+**Sector Tag Color Map** (consistent across all events — keyed to the 13-sector LLM vocabulary):
 
 | Sector | Background | Text |
 |--------|-----------|------|
-| AI / ML | #312E81 | #A5B4FC |
-| Big Tech | #082F49 | #38BDF8 |
-| Federal Policy | #431407 | #FB923C |
-| VC / Startups | #022C22 | #34D399 |
-| Semiconductors | #2E1065 | #C4B5FD |
-| Consumer Tech | #500724 | #F472B6 |
-| Healthcare Tech | #052E16 | #4ADE80 |
-| Fintech | #451A03 | #FCD34D |
-| Defense / Security | #450A0A | #F87171 |
-| Macro / Economy | #18181B | #94A3B8 |
+| Technology | #0a1929 | #60a5fa |
+| Finance | #451A03 | #FCD34D |
+| Policy & Regulation | #431407 | #FB923C |
+| Energy | #052e0a | #4ade80 |
+| Defence & Security | #450A0A | #F87171 |
+| Labour & Employment | #1a1a2e | #a5b4fc |
+| Manufacturing | #18181B | #94A3B8 |
+| Healthcare | #052E16 | #34D399 |
+| Education | #082F49 | #38BDF8 |
+| Media & Entertainment | #2E1065 | #C4B5FD |
+| Retail & E-commerce | #500724 | #F472B6 |
+| Agriculture | #1a2e05 | #86efac |
+| Real Estate | #1c1917 | #d6d3d1 |
 
 ---
 
@@ -795,7 +788,7 @@ Splash Screen:
 | No hallucinations | Zero tolerance | Temp 0.3, grounding prompt, schema validation, 2x retry |
 | No financial advice | Required | System prompt guardrail + UI disclaimer on every screen |
 | Accessibility | WCAG 2.2 Level AA | See §8.9 |
-| Cost | Near-zero MVP | Groq free (14,400 req/day), Reddit API free, pytrends free |
+| Cost | Near-zero MVP | Gemini Flash free tier; Groq free tier (14,400 req/day); Google News RSS is free |
 | Privacy | No PII | No auth, no tracking, no analytics with PII |
 
 ---
@@ -839,13 +832,10 @@ Splash Screen:
 
 ---
 
-## 12. Open Questions (Decisions Needed Before Dev Starts)
+## 12. Open Questions
 
-1. **App name final?** "News That Matters" ✅ confirmed.
-2. **Hosting budget?** Free tiers (Render/Railway) have cold-start issues; $5–10/mo recommended for always-on.
-3. **RSS feed list?** Need explicit confirmed feeds + paywalled source exclusion list.
-4. **Sector taxonomy?** Lock the allowed sector names before M3 (LLM enrichment). Suggested list in §5.1.
-5. **Legal/TOS?** "Not financial advice" disclaimer — confirm with legal if shipping publicly.
+1. **Hosting budget?** Free tiers (Render/Railway) have cold-start issues; $5–10/mo recommended for always-on.
+2. **Legal/TOS?** "Not financial advice" disclaimer — confirm with legal if shipping publicly.
 
 ---
 
@@ -861,7 +851,7 @@ Splash Screen:
 **Goal:** Prove we can gather and group relevant news from the web.
 
 **Deliverables:**
-- `pipeline/step1_fetch.py` — RSS ingestion for all 5 Google News feeds
+- `pipeline/step1_fetch.py` — RSS ingestion for all 12 Google News feeds
 - `pipeline/step2_cluster.py` — sentence-transformer embeddings + DBSCAN clustering
 - `scripts/test_m1.py` — smoke test runner
 - `output/clusters.json` — sample output artifact
@@ -882,15 +872,14 @@ Splash Screen:
 **Goal:** Rank clusters by real-world signal so the most relevant events surface first.
 
 **Deliverables:**
-- `pipeline/step3_score.py` — repetition + pytrends + Reddit PRAW scoring
-- `output/ranked_clusters.json` — clusters with trend_score, sorted descending
+- `pipeline/step3_score.py` — repetition + feed_diversity scoring
+- `output/ranked_clusters.json` — clusters with `selection_score`, sorted descending
 
 **Exit Criteria:**
-- [ ] Every cluster has `trend_score` in range [0.0, 1.0]
-- [ ] Scores are reproducible within ±5% on re-run (pytrends can drift slightly)
-- [ ] Top 7 clusters identified; top 5 flagged for LLM
-- [ ] Reddit API auth works with configured credentials
-- [ ] pytrends calls have 2s sleep between queries (rate-limit safety)
+- [ ] Every cluster has `selection_score` in range [0.0, 1.0]
+- [ ] Scores are deterministic — same input produces same output
+- [ ] Top 7 clusters identified; top 5 flagged for LLM (`for_llm = True`)
+- [ ] `feed_diversity_score` correctly reflects number of distinct feeds per cluster
 - [ ] Runtime ≤ 90 seconds
 
 **Demo:** `python pipeline/step3_score.py` → prints ranked event list with scores.
@@ -902,7 +891,7 @@ Splash Screen:
 **Goal:** Transform raw clusters into human-readable, AI-generated briefs.
 
 **Deliverables:**
-- `pipeline/step4_enrich.py` — Groq API integration
+- `pipeline/step4_enrich.py` — Gemini Flash (primary) + Groq (fallback) LLM integration + `PERSONA_WEIGHTS` rescoring
 - `models/schemas.py` — Pydantic models for all LLM output fields
 - `output/brief.json` — full enriched brief (5 events)
 - `tests/test_hallucination_guard.py` — prompt guardrail tests
@@ -1038,13 +1027,12 @@ Splash Screen:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Groq free tier rate limits hit | Low | High | 14,400 req/day; pipeline = 24 runs × 5 calls = 120/day. Safe. Fallback: Gemini Flash free. |
-| pytrends throttled by Google | Medium | Medium | 2s sleep between calls; cache query results 1hr per topic |
-| Reddit API limits | Low | Medium | Free: 100 req/min; we use ~35/run. Monitor & log. |
-| Pipeline overlaps next run | Low | Low | `APScheduler max_instances=1`; log duration; alert if > 4min |
-| LLM hallucinates | Medium | High | Temp 0.3 + grounding prompt + schema validation + 2x retry |
-| Low-quality RSS articles | Medium | Medium | Filter: ≤4 days, English, ≥100 char body |
+| Gemini Flash quota exhausted | Low | High | Free tier: 1,500 req/day; pipeline = 24 runs × 5 calls = 120/day. Well within limit. Groq fallback activates automatically via `LLM_PROVIDER` env var. |
+| Pipeline overlaps next run | Low | Low | `APScheduler max_instances=1`; log duration; alert if > 4 min |
+| LLM hallucinates | Medium | High | Temp 0.3 + grounding prompt + schema validation + 3 retries per cluster |
+| Low-quality RSS articles | Medium | Medium | Filter: ≤4 days, English only, ≥100 char body snippet |
 | Cache stale > 2 hours | Low | Medium | `is_stale` flag in API; UI banner; alert in server logs |
+| HuggingFace DNS blocked (Walmart network) | Medium | Low | TF-IDF fallback activates automatically (ADR-013); no action needed |
 | Expo SDK breaking changes | Low | Low | Pin SDK version; upgrade deliberately after M7 |
 
 ---
