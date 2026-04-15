@@ -631,4 +631,235 @@ Two-pass architecture:
 
 ---
 
-*Last updated: 2026-04-15 | 19 decisions recorded*
+## ADR-020 — Remove Groq; Replace with Gemini 3-Model Fallback Chain
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+Groq was the designated failover provider when Gemini hit its daily quota (ADR-015).
+Groq's API domain (`groq.com`) is not proxy-whitelisted on the Walmart corporate network
+(VPN / Eagle WiFi). Every attempt to initialise the Groq client timed out immediately,
+making the entire failover mechanism useless. `ProviderNetworkError` was raised before
+any LLM call was made.
+
+**Decision:**
+Remove Groq entirely. Replace single-model Gemini with a 3-tier fallback chain,
+all using the same `GEMINI_API_KEY` — no new credentials needed:
+
+```
+GEMINI_MODELS = [
+    "gemini-2.5-flash",   # 500 RPD free  — best quality, tried first
+    "gemini-2.0-flash",   # 1,500 RPD free — great quality
+    "gemini-1.5-flash",   # 1,500 RPD free — reliable fallback
+]                          # Total free capacity: 3,500 RPD
+```
+
+On `DailyQuotaError`: advance `_model_idx`, retry next tier. On exhaustion of all tiers:
+write `output/quota_state.json` and return an empty brief (see ADR-021).
+
+**Rationale:**
+- All three models reachable on Walmart network (googleapis.com is whitelisted)
+- 3,500 RPD combined capacity — pipeline runs 6 LLM calls/hour × 24 = 144/day, so
+  quota exhaustion requires an abnormal burst; normal ops never hit it
+- Zero new secrets: same `GEMINI_API_KEY` for all three
+- Removes `_call_groq()`, `ProviderNetworkError`, `GROQ_MODEL`, `LLM_PROVIDER` env var
+
+**Files changed:**
+- `pipeline/step4_enrich.py`: `GEMINI_MODELS` list replaces `GEMINI_MODEL` + `GROQ_MODEL`;
+  `_call_gemini(client, sc, model)` now takes model arg;
+  `_call_groq()` deleted; `ProviderNetworkError` deleted;
+  `enrich_clusters()` rewired with `_call_with_model_fallback()` inner fn
+- `pipeline/step4_enrich.py`: `_batch_sector_tag(client, model, candidates)` updated
+  to accept model param and raise `DailyQuotaError` (not swallow it)
+
+**Consequences:**
+- `LLM_PROVIDER` env var removed (no longer meaningful)
+- `GROQ_API_KEY` env var no longer used (safe to leave in .env, ignored)
+- Groq pip package no longer imported (still installed but unused — YAGNI to uninstall)
+
+**Superseded by:** —
+
+---
+
+## ADR-021 — Quota Manager: Persistent Quota State + Midnight PT Reset
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+When all Gemini model tiers hit their daily RPD limits, the pipeline would crash and the
+scheduler would keep retrying every hour — wasting RSS fetch + embed + cluster time
+(45s per run) on operations that would all fail at step4 anyway. The pipeline also had
+no way to communicate quota status to the API layer or the frontend.
+
+**Decision:**
+New module `pipeline/quota_manager.py` owns quota state lifecycle:
+
+```
+write_quota_exhausted(models_tried)  → writes output/quota_state.json
+clear_quota_state()                  → deletes quota_state.json (called after success)
+is_quota_exhausted() → bool          → checks file + reset time
+get_quota_state() → dict | None
+get_next_refresh_at() → datetime | None  → midnight PT + 1 min buffer
+next_midnight_pt() → datetime
+```
+
+`quota_state.json` schema:
+```json
+{"exhausted_at": "ISO", "models_tried": [...], "next_refresh_at": "ISO"}
+```
+
+**Quota gate in `run_pipeline.py`:** checks `is_quota_exhausted()` before running ANY
+pipeline step — skips immediately if quota is blown, saving ~45s of wasted work.
+
+**Scheduler behaviour:** `PipelineResult.quota_blocked=True` → scheduler skips DB write,
+keeping the last good brief intact in SQLite.
+
+**API behaviour:** `GET /brief` attaches `quota_exhausted`, `last_refreshed_at`,
+`next_refresh_at` to the meta response. Frontend shows subtle "Refreshes ~HH:MM" banner.
+
+**Reset:** Gemini daily quotas reset at midnight Pacific Time. `next_midnight_pt()` computes
+this correctly accounting for PST/PDT (UTC-8/UTC-7). A 1-minute buffer is added to avoid
+hitting quota immediately after reset.
+
+**Consequences:**
+- `pipeline/run_pipeline.py` returns `PipelineResult` dataclass (not a bare tuple)
+- `app/scheduler.py` reads `result.quota_blocked` before writing to DB
+- `models/schemas.py` `Brief` gains `quota_exhausted`, `last_refreshed_at`, `next_refresh_at`
+- `quota_state.json` is gitignored (runtime state, not source)
+
+**Superseded by:** —
+
+---
+
+## ADR-022 — Serve Frontend + Prototype over FastAPI (not file://)
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+Both `web/index.html` and `output/prototype-v2.html` were opened directly as `file://` URLs.
+Browsers send `Origin: null` for `file://` requests. While CORS was configured with
+`allow_origins=["*"]`, the relative API path `const API = 'http://127.0.0.1:8001'` was
+hard-coded — meaning if the server wasn't on that exact address the prototype broke.
+More critically, `fetch('/brief')` from a `file://` page resolves to `file:///brief` —
+an immediate failure with no error message shown to the user.
+
+**Decision:**
+Mount `web/` and `output/` as StaticFiles on the FastAPI server. Add explicit routes:
+
+```
+GET /           → FileResponse: web/index.html      (dark OLED main UI)
+GET /prototype  → FileResponse: output/prototype-v2.html  (light mode prototype)
+/web/...        → StaticFiles(directory="web/")
+/output/...     → StaticFiles(directory="output/")
+```
+
+Prototype API base: `const API = ''` (same-origin, zero CORS complexity).
+
+**Rationale:**
+- Same-origin requests need no CORS headers at all — zero config
+- `fetch('/brief')` resolves correctly to `http://localhost:8001/brief`
+- Serving over HTTP matches production behaviour exactly
+- StaticFiles serves from disk on every request — file changes are live-reloaded
+  without restarting uvicorn (important during prototype iteration)
+
+**Important — prototype vs main UI distinction:**
+`prototype-v2.html` and `web/index.html` are SEPARATE FILES.
+`web/index.html` is the committed dark OLED swipe-card UI.
+`prototype-v2.html` is the light-mode design under iteration — NOT yet merged.
+They must stay separate until a deliberate merge decision is made.
+
+**Start server:** `cd news-that-matters && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001`
+(Use `python -m uvicorn`, not `.venv/bin/uvicorn` — the shebang in the latter points to
+the old `signal-brief` venv path and will fail with "bad interpreter".)
+
+**Consequences:**
+- `app/main.py` imports `FileResponse`, `StaticFiles`
+- `output/prototype-v2.html`: `const API = ''`
+- Both UIs accessible without opening files manually
+
+**Superseded by:** —
+
+---
+
+## ADR-023 — Prototype Unbreakable UX: Static-First, Silent API Upgrade
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Code Puppy (technical) | Astha (confirmed)
+
+**Context:**
+`fetchAndInit()` called `showLoading()` first, which wiped the card stack innerHTML,
+then fetched the API. Any error (network timeout, 404, bad JSON, CORS) landed in
+`showError()` which displayed "Couldn't load brief" with the raw error message —
+a broken blank screen for the user.
+
+**Decision:**
+Static-first rendering with silent background upgrade:
+
+```
+DOMContentLoaded:
+  1. init()           ← renders static built-in EVENTS immediately (zero wait)
+  2. fetchAndInit()   ← background fetch with 3s timeout
+      ├── API responds + events > 0  → EVENTS = live data, re-run init()
+      ├── API down / timeout / error → keep static EVENTS, show "📡 Showing sample brief" banner
+      └── API responds but 0 events  → same as above
+```
+
+**Key invariants:**
+- `init()` is always called. Cards are ALWAYS visible.
+- `showError()` is deleted. `showBanner()` never touches the card stack.
+- `showLoading()` is deleted. No spinners — content is immediate.
+- `_listenersAttached` flag: event handlers attached exactly once across re-inits.
+- `_clockStarted` flag: `setInterval` started exactly once.
+- Fetch timeout: 3 seconds (static data already visible, no need to wait longer).
+
+**Consequences:**
+- Static `EVENTS` array in the HTML is the true failsafe — keep it populated with
+  high-quality representative events, never lorem ipsum or dummy data
+- When API is live, user sees static cards for < 1s then live data replaces them
+- Banner types: `'stale'` (amber, data old), `'info'` (indigo, sample data showing)
+
+**Superseded by:** —
+
+---
+
+## ADR-024 — Remove Timeline from Prototype Cards
+
+**Date:** 2026-04-15
+**Status:** ✅ Accepted
+**Decider:** Astha (PM)
+
+**Context:**
+The horizontal mini-timeline (past → now → future dots with date labels) was part of the
+original prototype-v2 design shown in both tab panes ("What Happened" and "Why It Matters").
+After UX review, it was decided to remove it — the date information it provided was not
+additive to the summary and cluttered the card layout.
+
+**Decision:**
+Remove timeline entirely from `output/prototype-v2.html`:
+- CSS: deleted `.timeline`, `.tl-node`, `.tl-dot`, `.tl-line`, `.tl-label` + `nowPulse` keyframe
+- JS: deleted `buildTimeline()` function
+- JS: removed `tl` field from `adaptBrief()` mapping
+- JS: removed `const tl = ev.tl.map(...)` and both `<div class="timeline">${tl}</div>`
+  occurrences from `buildCard()`
+- Data: removed `tl:[...]` array from all 5 static EVENTS entries
+
+**Verification:** `grep -n "timeline\|\.tl-" prototype-v2.html` returns exit code 1 (0 matches).
+
+**Consequences:**
+- Both tab panes now contain only text (summary / why it matters)
+- Cards are cleaner, more readable on small screens
+- `buildTimeline` and all its dependencies gone — zero dead code remaining
+- `adaptBrief()` no longer needs `source_articles` to be sorted by date
+
+**Superseded by:** —
+
+---
+
+*Last updated: 2026-04-15 | 24 decisions recorded*

@@ -41,7 +41,31 @@ At the end of each session:
   - PRD.md §5.1: Step 3+4 rewritten to match two-pass reality
   - M2 smoke test PASSED: 9/9 checks in 43.2s
   - M3 live test: IN PROGRESS
-```
+
+2026-04-15 infra + prototype session (ADR-020 through ADR-024):
+  - Groq removed entirely (network blocked on Walmart VPN — groq.com not whitelisted)
+    → Replaced with Gemini 3-tier fallback chain: 2.5-flash → 2.0-flash → 1.5-flash
+    → 3,500 RPD total free capacity; all on same GEMINI_API_KEY
+  - quota_manager.py: new module for persistent quota state
+    → output/quota_state.json tracks exhaustion; auto-clears after midnight PT reset
+    → scheduler skips DB write when quota_blocked=True (preserves last good brief)
+    → /brief API response includes quota_exhausted + next_refresh_at for UI
+  - run_pipeline.py: rewritten; returns PipelineResult dataclass (not bare tuple)
+  - Frontend served over FastAPI (not file://):
+    → GET / → web/index.html (dark OLED UI)
+    → GET /prototype → output/prototype-v2.html (light mode, under iteration)
+    → /web/ and /output/ mounted as StaticFiles
+    → prototype-v2.html: const API = '' (same-origin, no CORS needed)
+  - Prototype unbreakable UX (ADR-023):
+    → showLoading() + showError() DELETED
+    → init() fires immediately on DOMContentLoaded with static EVENTS (no spinner)
+    → fetchAndInit() upgrades silently in background (3s timeout)
+    → API down → "📡 Showing sample brief" banner; cards always visible
+    → _listenersAttached + _clockStarted flags: prevent duplicate handlers on re-init
+  - Timeline removed from prototype cards (ADR-024):
+    → CSS, JS (buildTimeline, tl compute, both <div class="timeline"> occurrences)
+    → tl:[...] field removed from all 5 static EVENTS; tl field removed from adaptBrief
+    → Zero timeline references verified by grep
 ```
 
 ---
@@ -243,43 +267,46 @@ At the end of each session:
 ```
 ► ACTIVE:  M7 — Deploy + QA. Day 9 of 10.
 
-Context (as of 2026-04-15):
+Context (as of 2026-04-15 end of session):
   M6 done. All mobile screens built. Full app works end-to-end in Expo web.
-  API live on localhost:8001 (app.main:app, port 8001).
-  Scoring overhauled — persona weights live, 12 feeds, partial brief safety net.
+  API live on localhost:8001 (python -m uvicorn app.main:app --port 8001).
+  ⚠️  Use `python -m uvicorn`, NOT `.venv/bin/uvicorn` — the shebang in the
+      latter points to the old signal-brief venv and raises "bad interpreter".
 
-UX REVAMP shipped (2026-04-15):
-  - Timeline component: REMOVED (dots, ctx narrative, all CSS/JS)
-  - Tab switch (What Happened / Why It Matters): REMOVED — zero-interaction card
-  - summary: now 2 sentences max (~35 words); LLM prompt + validation updated
-  - why_it_matters: now 1 sentence (~20 words); always visible as callout box
-  - models/schemas.py: timeline_context field removed from EnrichedEvent
-  - pipeline/step4_enrich.py: prompt + _validate_llm_dict updated to match
-  - PRD v1.6 written with UX principles and content length guardrails updated
+Frontend state (IMPORTANT — read carefully):
+  - http://localhost:8001/          → dark OLED swipe-card UI (web/index.html)
+  - http://localhost:8001/prototype → light-mode prototype (output/prototype-v2.html)
+  - prototype-v2.html and web/index.html are SEPARATE FILES — prototype is NOT merged.
+  - Tab switch (What Happened / Why It Matters) is STILL IN the prototype — not removed.
+  - Timeline component: removed from prototype only (CSS + JS + data all gone).
 
 Pipeline current state:
   - step1_fetch.py  : 12 feeds, _GEO_KEYWORDS expanded
   - step2_cluster.py: MiniLM-L6-v2 + TF-IDF fallback, DBSCAN
   - step3_score.py  : rep_score only → TOP_N_CANDIDATES=15, all for_llm=True
-  - step4_enrich.py : TWO-PASS — Pass1: batch sector-tag (1 LLM call, 15 candidates)
-                                  → re-rank by 0.70×rep + 0.30×persona → select top 5
-                                  Pass2: full enrichment (5 LLM calls)
-                                  final score: 0.70×rep + 0.30×persona(pass2_sectors)
-  - app/main.py     : FastAPI, SQLite cache, APScheduler 60min
-  - prototype-v2.html: light mode swipe card UI — ✅ NOW PRIMARY (copied to web/index.html; dark OLED retired)
+  - step4_enrich.py : TWO-PASS — Pass1: batch sector-tag (GEMINI_MODELS[0], temp=0.2)
+                                   → re-rank by 0.70×rep + 0.30×persona → select top 5
+                                   Pass2: full enrichment (5 LLM calls)
+                                   final score: 0.70×rep + 0.30×persona(pass2_sectors)
+  - LLM chain       : gemini-2.5-flash → gemini-2.0-flash → gemini-1.5-flash (all same key)
+                      Groq removed entirely (network blocked on Walmart VPN)
+  - quota_manager.py: tracks daily quota exhaustion; resets after midnight PT
+  - run_pipeline.py : returns PipelineResult dataclass; quota_blocked flag skips DB write
+  - app/main.py     : FastAPI, SQLite cache, APScheduler 60min; serves / + /prototype
 
-M7 Tasks:
+M7 Tasks remaining:
   1. Switch API_BASE in mobile/services/api.ts to production URL
   2. Deploy FastAPI to Render/Railway/Fly.io (HTTPS, always-on, env vars)
   3. 50-run LLM red-team (hallucination + financial advice check)
-  4. WCAG 2.2 AA contrast verification (all text + UI components)
+  4. WCAG 2.2 AA contrast verification (all text + U)
   5. E2E flow: home loads → tap card → article list → tap article → browser
   6. Expo Go QR code for physical device testing
-  7. is_stale banner appears if pipeline down > 2 hours
+  7. Verify is_stale banner + quota_exhausted banner appear correctly in UI
 
-Optional (V1.1 scope):
-  - ✅ DONE: prototype-v2.html is now web/index.html (light mode is primary)
-  - Re-sort brief events by final_signal_score (currently ordered by step3 rank)
+Prototype UX decisions pending (not yet ADR'd — discuss with Astha):
+  - Should prototype-v2.html replace web/index.html as primary UI?
+  - Should the tab switch (What Happened / Why It Matters) be kept or removed?
+  - Is the static EVENTS data in prototype-v2.html fresh enough for demos?
 
 Done when:
   - Production API URL works from real device (not localhost)
@@ -315,6 +342,11 @@ Done when:
 | 2026-04-14 | **Google News feeds expanded 5 → 12** | ADR-017 | 7 SV-persona feeds added |
 | 2026-04-14 | **Partial brief safety net** | ADR-018 | Per-cluster try/except in step4; partial brief on LLM failure |
 | 2026-04-15 | **Two-pass LLM scoring: rep-only pre-filter + batch sector-tag Pass 1** | ADR-019 | Eliminates selection bias; step3 passes 15 candidates; step4 selects correct top 5 via persona re-rank |
+| 2026-04-15 | **Groq removed; Gemini 3-model fallback chain** | ADR-020 | groq.com blocked on Walmart VPN; 3,500 RPD capacity via 2.5/2.0/1.5-flash; single GEMINI_API_KEY |
+| 2026-04-15 | **quota_manager.py: persistent quota state + midnight PT reset** | ADR-021 | Scheduler skips DB write when quota blown; API exposes next_refresh_at to frontend |
+| 2026-04-15 | **Frontend served over FastAPI (not file://)** | ADR-022 | / → dark UI, /prototype → light prototype; same-origin removes CORS friction |
+| 2026-04-15 | **Prototype unbreakable UX: static-first, silent API upgrade** | ADR-023 | showLoading/showError deleted; cards always visible; API outage = sample banner only |
+| 2026-04-15 | **Timeline removed from prototype cards** | ADR-024 | CSS + JS + data all deleted; zero references verified |
 
 ---
 
