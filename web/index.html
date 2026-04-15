@@ -41,7 +41,7 @@
     .prog-dot.active{width:20px;background:var(--accent)}
 
     /* ── Card stack ── */
-    .card-stack{flex:1;position:relative;margin:0 14px 14px;overflow:visible}
+    .card-stack{flex:1;position:relative;margin:0 14px 56px;overflow:visible}
 
     /* ── Swipe card ── */
     .swipe-card{position:absolute;inset:0;
@@ -101,13 +101,7 @@
     .score-insight{padding:7px 16px 8px;
       background:rgba(0,0,0,.04);border-bottom:1px solid rgba(0,0,0,.06);
       display:flex;align-items:center;gap:6px;flex-shrink:0}
-    .insight-icon{font-size:12px;flex-shrink:0}
-    .insight-text{font-size:11px;font-weight:600;color:var(--sub);line-height:1.4}
-    .insight-tap{font-size:10px;font-weight:700;color:var(--accent);
-      letter-spacing:.04em;cursor:pointer;white-space:nowrap;flex-shrink:0;
-      padding:2px 8px;border-radius:99px;background:rgba(124,58,237,.08);
-      border:1px solid rgba(124,58,237,.18);touch-action:manipulation}
-    .insight-tap:active{background:rgba(124,58,237,.16)}
+    /* ── Score breakdown sheet ── */
 
     /* ── Card body ── */
     .card-body{flex:1;display:flex;flex-direction:column;padding:11px 16px 10px;overflow:hidden;min-height:0}
@@ -183,7 +177,23 @@
       transition:opacity .3s ease}
     .hint-left{left:-8px}.hint-right{right:-8px}
 
-    /* ── Score breakdown modal (inline expand on card, shown via sheet) ── */
+    /* ── AI insight strip — compact chip row, no sentences ── */
+    .score-insight{padding:5px 12px 5px;
+      background:rgba(0,0,0,.03);border-bottom:1px solid rgba(0,0,0,.05);
+      display:flex;align-items:center;gap:5px;flex-shrink:0;overflow:hidden}
+    .insight-chip{display:inline-flex;align-items:center;gap:3px;
+      padding:2px 8px;border-radius:99px;white-space:nowrap;
+      font-size:10px;font-weight:700;letter-spacing:.03em;
+      background:rgba(0,0,0,.05);color:var(--sub);
+      border:1px solid rgba(0,0,0,.07)}
+    .insight-sep{color:#d1d5db;font-size:10px;flex-shrink:0}
+    .insight-spacer{flex:1}
+    .insight-tap{display:inline-flex;align-items:center;justify-content:center;
+      width:22px;height:22px;border-radius:99px;flex-shrink:0;
+      background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);
+      color:var(--accent);cursor:pointer;touch-action:manipulation;
+      font-size:11px;font-weight:800;transition:background .15s ease}
+    .insight-tap:active{background:rgba(124,58,237,.2)}
     .breakdown-row{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #f3f4f6}
     .breakdown-row:last-child{border-bottom:none}
     .breakdown-icon{width:32px;height:32px;border-radius:10px;
@@ -415,11 +425,15 @@ function buildCard(ev,idx){
       </div>
     </div>
 
-    <!-- ── AI Insight strip ── -->
+    <!-- ── AI insight strip: scannable data chips, no sentences ── -->
     <div class="score-insight">
-      <span class="insight-icon">✦</span>
-      <span class="insight-text">${esc(ev.insight||'AI-ranked based on editorial coverage and persona relevance')}</span>
-      <button class="insight-tap" onclick="openScoreSheet(${idx})">How?</button>
+      <span class="insight-chip">📡 ${srcCount} src</span>
+      <span class="insight-sep">·</span>
+      <span class="insight-chip">📰 ${repPct}% cov</span>
+      <span class="insight-sep">·</span>
+      <span class="insight-chip">🎯 ${perPct}% match</span>
+      <span class="insight-spacer"></span>
+      <button class="insight-tap" onclick="openScoreSheet(${idx})" aria-label="How this was scored">↗</button>
     </div>
 
     <!-- ── Card body ── -->
