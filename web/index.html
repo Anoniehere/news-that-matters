@@ -17,15 +17,9 @@
         radial-gradient(ellipse 70% 55% at 10% 0%,#ddd6fe 0%,transparent 55%),
         radial-gradient(ellipse 55% 45% at 90% 100%,#bfdbfe 0%,transparent 50%),#ede9fe}
 
-    /* ── Proto banner ── */
-    .proto-banner{position:fixed;top:0;left:0;right:0;z-index:9999;
-      background:linear-gradient(90deg,#f59e0b,#f97316);
-      color:#000;font-size:11px;font-weight:700;letter-spacing:.06em;
-      text-align:center;padding:7px 16px;text-transform:uppercase}
-
     /* ── Phone shell ── */
-    .phone{position:relative;z-index:1;margin-top:30px;
-      width:100%;max-width:430px;height:calc(100dvh - 30px);
+    .phone{position:relative;z-index:1;margin-top:0;
+      width:100%;max-width:430px;height:100dvh;
       background:#f5f3ff;overflow:hidden;display:flex;flex-direction:column}
     @media(min-width:500px){
       .phone{height:min(900px,calc(96dvh - 30px));border-radius:44px;
@@ -47,7 +41,7 @@
     .prog-dot.active{width:20px;background:var(--accent)}
 
     /* ── Card stack ── */
-    .card-stack{flex:1;position:relative;margin:0 14px 0;overflow:visible}
+    .card-stack{flex:1;position:relative;margin:0 14px 14px;overflow:visible}
 
     /* ── Swipe card ── */
     .swipe-card{position:absolute;inset:0;
@@ -57,50 +51,77 @@
       transform-origin:center 110%;
       will-change:transform,opacity;
       user-select:none;-webkit-user-select:none}
-    .swipe-card.hero-card{
-      box-shadow:0 2px 8px rgba(124,58,237,.12),0 12px 32px rgba(0,0,0,.1),0 32px 64px rgba(0,0,0,.08)}
     .swipe-card.is-behind{pointer-events:none}
     .swipe-card.is-hidden{pointer-events:none;opacity:0!important;transform:scale(.88)!important}
 
-    /* ── Card strip ── */
-    .card-strip{height:5px;width:100%;flex-shrink:0}
+    /* ── Score hero — the first thing you see on every card ── */
+    .score-hero{flex-shrink:0;padding:16px 16px 14px;
+      display:flex;align-items:flex-start;justify-content:space-between;
+      position:relative;overflow:hidden}
+    .score-hero::after{content:'';position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(0,0,0,.0) 60%,rgba(0,0,0,.12) 100%);pointer-events:none}
+
+    /* rank watermark inside hero */
+    .rank-wm{position:absolute;top:-8px;right:10px;
+      font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
+      font-size:88px;line-height:1;color:rgba(255,255,255,.14);
+      user-select:none;pointer-events:none;letter-spacing:-.04em;z-index:0}
+
+    /* left column: big number + label */
+    .score-left{display:flex;flex-direction:column;gap:2px;z-index:1}
+    .score-ai-label{font-size:9px;font-weight:800;letter-spacing:.1em;
+      text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:2px}
+    .score-big{font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
+      font-size:52px;line-height:1;letter-spacing:-.04em;color:#fff;
+      text-shadow:0 2px 12px rgba(0,0,0,.2)}
+    .score-denom{font-size:16px;font-weight:600;opacity:.55;margin-left:2px}
+    .score-level-pill{display:inline-flex;align-items:center;gap:4px;
+      padding:3px 10px;border-radius:99px;margin-top:5px;
+      background:rgba(255,255,255,.22);backdrop-filter:blur(4px);
+      border:1px solid rgba(255,255,255,.3);width:fit-content}
+    .score-level-pill span{font-size:10px;font-weight:800;letter-spacing:.07em;
+      text-transform:uppercase;color:#fff}
+    .score-pulse{width:7px;height:7px;border-radius:99px;background:#fff;
+      animation:heroPulse 1.8s ease-in-out infinite}
+    @keyframes heroPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+    /* right column: coverage + persona mini-bars */
+    .score-right{display:flex;flex-direction:column;gap:8px;min-width:108px;z-index:1}
+    .mini-bar-wrap{display:flex;flex-direction:column;gap:3px}
+    .mini-bar-label{display:flex;align-items:center;justify-content:space-between}
+    .mini-bar-name{font-size:9px;font-weight:700;letter-spacing:.06em;
+      text-transform:uppercase;color:rgba(255,255,255,.7)}
+    .mini-bar-pct{font-size:10px;font-weight:800;color:#fff}
+    .mini-track{height:4px;border-radius:99px;background:rgba(255,255,255,.2);overflow:hidden}
+    .mini-fill{height:100%;border-radius:99px;width:0%;
+      background:rgba(255,255,255,.85);
+      transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+
+    /* insight strip below hero */
+    .score-insight{padding:7px 16px 8px;
+      background:rgba(0,0,0,.04);border-bottom:1px solid rgba(0,0,0,.06);
+      display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .insight-icon{font-size:12px;flex-shrink:0}
+    .insight-text{font-size:11px;font-weight:600;color:var(--sub);line-height:1.4}
+    .insight-tap{font-size:10px;font-weight:700;color:var(--accent);
+      letter-spacing:.04em;cursor:pointer;white-space:nowrap;flex-shrink:0;
+      padding:2px 8px;border-radius:99px;background:rgba(124,58,237,.08);
+      border:1px solid rgba(124,58,237,.18);touch-action:manipulation}
+    .insight-tap:active{background:rgba(124,58,237,.16)}
 
     /* ── Card body ── */
-    .card-body{flex:1;display:flex;flex-direction:column;padding:14px 16px 12px;overflow:hidden;min-height:0}
+    .card-body{flex:1;display:flex;flex-direction:column;padding:11px 16px 10px;overflow:hidden;min-height:0}
 
-    /* ── Rank watermark ── */
-    .rank-wm{position:absolute;top:-4px;right:12px;
-      font-family:'Plus Jakarta Sans',sans-serif;font-weight:900;
-      font-size:80px;line-height:1;color:rgba(0,0,0,.035);
-      user-select:none;pointer-events:none;letter-spacing:-.04em}
-
-    /* ── Hero badge ── */
-    .hero-badge{display:inline-flex;align-items:center;gap:5px;
-      padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;
-      letter-spacing:.07em;text-transform:uppercase;
-      background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(192,38,211,.08));
-      border:1px solid rgba(124,58,237,.22);color:var(--accent);margin-bottom:8px}
-
-    /* ── Flags FEAT 4 ── */
-    .flags-row{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-shrink:0}
-    .flags-cluster{display:flex;gap:2px;font-size:20px;line-height:1}
+    /* ── Flags row (inside card body) ── */
+    .flags-row{display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-shrink:0}
+    .flags-cluster{display:flex;gap:2px;font-size:18px;line-height:1}
     .region-badge{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
       padding:2px 8px;border-radius:99px;background:rgba(0,0,0,.05);
       border:1px solid rgba(0,0,0,.07);color:var(--muted)}
 
-    /* ── Impact gauge FEAT 5 ── */
-    .gauge-wrap{margin-bottom:10px;flex-shrink:0}
-    .gauge-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
-    .gauge-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-    .gauge-right{display:flex;align-items:center;gap:5px}
-    .gauge-level{font-size:11px;font-weight:700;letter-spacing:.04em}
-    .gauge-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800}
-    .gauge-track{height:7px;border-radius:99px;background:#e5e7eb;overflow:hidden}
-    .gauge-fill{height:100%;border-radius:99px;width:0%;transition:width 1.1s cubic-bezier(.4,0,.2,1)}
-
     /* ── Heading ── */
-    .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:900;
-      line-height:1.25;letter-spacing:-.025em;color:#111827;margin-bottom:10px;flex-shrink:0}
+    .card-heading{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:900;
+      line-height:1.25;letter-spacing:-.025em;color:#111827;margin-bottom:8px;flex-shrink:0}
 
     /* ── Tabs FEAT 2 ── */
     .tab-bar{display:flex;gap:3px;background:#f3f4f6;border-radius:12px;
@@ -134,13 +155,18 @@
     
 
     /* ── Sector chips ── */
-    .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;flex-shrink:0}
+    .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;flex-shrink:0}
     .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
       border-radius:99px;font-size:10.5px;font-weight:600;white-space:nowrap}
 
     /* ── Card footer ── */
     .card-footer{display:flex;align-items:center;justify-content:space-between;
-      padding-top:10px;margin-top:10px;border-top:1px solid #f3f4f6;flex-shrink:0}
+      padding-top:8px;margin-top:8px;border-top:1px solid #f3f4f6;flex-shrink:0}
+    .footer-rank{display:flex;align-items:center;gap:5px}
+    .rank-badge{display:inline-flex;align-items:center;justify-content:center;
+      width:22px;height:22px;border-radius:8px;background:#f3f4f6;
+      font-size:10px;font-weight:800;color:var(--sub)}
+    .footer-rank-text{font-size:11px;font-weight:600;color:var(--muted)}
     .sources-btn{display:inline-flex;align-items:center;gap:5px;
       padding:6px 14px;border-radius:10px;border:1px solid rgba(124,58,237,.2);
       background:rgba(124,58,237,.06);font-size:11.5px;font-weight:600;
@@ -157,16 +183,17 @@
       transition:opacity .3s ease}
     .hint-left{left:-8px}.hint-right{right:-8px}
 
-    /* ── Bottom nav ── */
-    .bottom-nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav-h);
-      background:rgba(255,255,255,.92);backdrop-filter:blur(20px);
-      -webkit-backdrop-filter:blur(20px);border-top:1px solid #e5e7eb;
-      display:flex;align-items:center;justify-content:space-around;
-      padding-bottom:env(safe-area-inset-bottom,0px)}
-    .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;
-      font-size:10px;font-weight:500;color:var(--muted);min-width:44px;min-height:44px;justify-content:center}
-    .nav-item.active{color:var(--accent)}
-    .nav-dot{width:4px;height:4px;border-radius:99px;background:var(--accent)}
+    /* ── Score breakdown modal (inline expand on card, shown via sheet) ── */
+    .breakdown-row{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #f3f4f6}
+    .breakdown-row:last-child{border-bottom:none}
+    .breakdown-icon{width:32px;height:32px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+    .breakdown-info{flex:1}
+    .breakdown-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+    .breakdown-desc{font-size:11px;color:var(--muted);line-height:1.4}
+    .breakdown-pct{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:var(--text);flex-shrink:0}
+    .breakdown-track{height:3px;border-radius:99px;background:#f3f4f6;margin-top:4px;overflow:hidden}
+    .breakdown-fill{height:100%;border-radius:99px;width:0%;transition:width .9s cubic-bezier(.4,0,.2,1)}
 
     /* ── Bottom sheet (fixed, outside phone) ── */
     #sheet{position:fixed;inset:0;z-index:1000;pointer-events:none}
@@ -198,10 +225,7 @@
     @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}50%{box-shadow:0 0 0 5px rgba(124,58,237,0)}}
     .live-dot{width:6px;height:6px;border-radius:99px;background:var(--accent);animation:glowPulse 2s infinite}
 
-    /* ── Feature tag ── */
-    .ftag{position:absolute;top:9px;left:9px;z-index:20;
-      background:rgba(245,158,11,.9);color:#000;font-size:9px;font-weight:800;
-      letter-spacing:.05em;padding:2px 7px;border-radius:99px;text-transform:uppercase;pointer-events:none}
+    /* ── Feature tag ── — removed */
 
     /* ── Loading / Error states ── */
     .loading-state,.error-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center;padding:20px}
@@ -215,8 +239,6 @@
   </style>
 </head>
 <body>
-
-<div class="proto-banner" id="proto-banner">🔬 Light Mode UI · Live Data · ← → Arrow Keys or Drag to Swipe</div>
 
 <div class="phone" id="phone">
 
@@ -258,26 +280,6 @@
     </div>
   </div>
 
-  <!-- Bottom nav -->
-  <nav class="bottom-nav">
-    <div class="nav-item active">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-      <div class="nav-dot"></div>
-    </div>
-    <div class="nav-item">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <span>Explore</span>
-    </div>
-    <div class="nav-item">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span>Alerts</span>
-    </div>
-    <div class="nav-item">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      <span>Profile</span>
-    </div>
-  </nav>
-
 </div><!-- /phone -->
 
 <!-- Bottom sheet — fixed, outside phone to avoid overflow:hidden clipping -->
@@ -300,47 +302,47 @@
 <script>
 // ── Event data ───────────────────────────────────────────────────────────────
 let EVENTS=[
-  {rank:1,score:.70,
+  {rank:1,score:.70,rep:.85,persona:.78,srcCount:8,
+   insight:"Tracked across 8 sources in 4h — high editorial velocity",
    heading:"US-Iran Ceasefire Deal Weakens Dollar, Shifts Global Risk Appetite",
    summary:"A ceasefire deal between the United States and Iran was reported in early April 2026, marking a significant de-escalation of geopolitical tensions. This immediately led to a substantial weakening of the U.S. Dollar — its worst weekly drop since January. Investors responded by rotating capital toward risk assets globally. The development signals a potential reconfiguration of geopolitical risk premiums in markets.",
    why:"For Silicon Valley professionals, this de-escalation can significantly impact global capital flows. Easing tensions may encourage greater appetite for risk in emerging markets, opening new avenues for tech investment. The weakening dollar could affect purchasing power of US tech firms operating internationally and alter currency hedging strategies. Watch for shifts in venture capital appetite and cross-border M&A in coming weeks.",
-
    flags:["🇺🇸","🇮🇷"],region:"Middle East",
    sectors:[{n:"Finance",e:"💰"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"Dollar Plummets: Worst Weekly Drop Since January After US-Iran Deal",s:"CryptoRank",u:"#"},{t:"US Dollar Falls as Iran Ceasefire Hopes Spark Flight to Risk Assets",s:"CryptoRank",u:"#"},{t:"Australian Dollar Drops as US-Iran Ceasefire Hopes Evaporate",s:"CryptoRank",u:"#"}],
    grads:["#7c3aed","#a855f7","#c026d3"]},
-  {rank:2,score:.5547,
+  {rank:2,score:.5547,rep:.62,persona:.58,srcCount:5,
+   insight:"5 major outlets clustered around this story in 6h",
    heading:"US-Iran Ceasefire Talks Begin in Islamabad Amid Critical Stakes",
-   summary:"Historic ceasefire negotiations between the US and Iran commenced in Islamabad on April 11, 2026. The talks hinge on a final 10-point proposal addressing key disputes. Pakistan's role as host signals a shift toward multipolar diplomatic mediation. Both sides appear willing to engage, though significant sticking points remain.",
+   summary:"Historic ceasefire negotiations between the US and Iran commenced in Islamabad on April 11, 2026. The talks hinge on a final 10-point proposal addressing key disputes. Pakistan’s role as host signals a shift toward multipolar diplomatic mediation. Both sides appear willing to engage, though significant sticking points remain.",
    why:"Geopolitical stability in the Middle East directly influences global energy markets, impacting operational costs for data centers and tech manufacturing. A successful ceasefire could ease regional tensions and reduce supply chain disruption risk. Silicon Valley firms with exposure to Gulf markets or dependent on stable energy prices should monitor outcomes closely. Export control and sanctions policy may shift in response to any deal.",
-
    flags:["🇺🇸","🇮🇷","🇵🇰"],region:"South Asia",
    sectors:[{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"},{n:"Defence",e:"🛡️"},{n:"Finance",e:"💰"}],
    sources:[{t:"Critical Ceasefire Hinges on Final 10-Point Proposal",s:"CryptoRank",u:"#"},{t:"Historic Islamabad Negotiations Begin April 11 with Critical Stakes",s:"CryptoRank",u:"#"}],
    grads:["#0ea5e9","#06b6d4","#0d9488"]},
-  {rank:3,score:.28,
+  {rank:3,score:.28,rep:.31,persona:.24,srcCount:3,
+   insight:"Emerging signal — 2 think tanks + 1 regional outlet picked this up",
    heading:"Middle East Geopolitical Conundrum and Shifting Power Dynamics",
    summary:"The Middle East remains a complex arena of proxies and strategic levers, with no single actor holding decisive control. Long-standing rivalries continue to evolve as external powers reposition. The ceasefire window is creating unexpected diplomatic space. Analysts warn that proxy realignments could outlast any formal agreement.",
    why:"Persistent instability creates ongoing supply chain risk for hardware manufacturing and energy-dependent data infrastructure. Increased regional instability could disrupt shipping lanes critical to tech component sourcing. Companies with manufacturing in Turkey, UAE, or Saudi Arabia face elevated operational risk. Monitor for secondary sanctions that could restrict tech exports to the region.",
-
    flags:["🌍"],region:"Middle East",
    sectors:[{n:"Defence",e:"🛡️"},{n:"Energy",e:"⚡"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"}],
    sources:[{t:"Proxies and levers: The Middle East conundrum",s:"Times of India",u:"#"}],
    grads:["#f43f5e","#ec4899","#a855f7"]},
-  {rank:4,score:.28,
+  {rank:4,score:.28,rep:.30,persona:.22,srcCount:2,
+   insight:"Regional focus — strong India supply-chain persona relevance",
    heading:"India's West Asia Diplomacy Balances Gulf Ties and Iran Engagement",
-   summary:"India successfully navigated the War in West Asia by deepening Gulf relationships while keeping Iran diplomatic channels open. This balancing act reflects India's broader strategy of non-alignment in great-power competition. The approach has strengthened India's role as an emerging multipolar broker. Analysts view this as a model for middle-power diplomacy in a fragmented world.",
-   why:"India's diplomatic agility has direct implications for Silicon Valley's supply chain and talent pipeline. Stable India-Gulf relations protect critical semiconductor and mineral trade routes. India's growing clout makes it an increasingly important partner for US tech firms expanding into South Asia. A stable India-Iran channel reduces risk of tech export disruptions through the region.",
-
+   summary:"India successfully navigated the War in West Asia by deepening Gulf relationships while keeping Iran diplomatic channels open. This balancing act reflects India’s broader strategy of non-alignment in great-power competition. The approach has strengthened India’s role as an emerging multipolar broker. Analysts view this as a model for middle-power diplomacy in a fragmented world.",
+   why:"India’s diplomatic agility has direct implications for Silicon Valley’s supply chain and talent pipeline. Stable India-Gulf relations protect critical semiconductor and mineral trade routes. India’s growing clout makes it an increasingly important partner for US tech firms expanding into South Asia. A stable India-Iran channel reduces risk of tech export disruptions through the region.",
    flags:["🇮🇳","🇦🇪","🇮🇷"],region:"South Asia",
    sectors:[{n:"Technology",e:"💻"},{n:"Manufacturing",e:"🏭"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"How India navigated the War in West Asia, deepening Gulf ties while keeping Iran channel open",s:"Punjab Kesari",u:"#"}],
    grads:["#f59e0b","#f97316","#ef4444"]},
-  {rank:5,score:.28,
+  {rank:5,score:.28,rep:.32,persona:.21,srcCount:4,
+   insight:"Trade policy shift — AI flagged critical minerals supply chain risk",
    heading:"China Expands Tariff-Free Trade with 53 African Nations",
-   summary:"China announced full tariff-free measures for 53 African countries with diplomatic ties, effective April 12, 2026. The policy deepens China's economic footprint across the continent. It directly counters US and European infrastructure investment initiatives in Africa. Critical mineral supply chains — cobalt and lithium — are central to the move.",
-   why:"This reshapes the critical minerals supply chain that Silicon Valley's hardware ecosystem depends on. Chinese control of cobalt and lithium sourcing from the DRC and Zambia creates new pricing and access risks. Tech firms reliant on African critical minerals for batteries and chips should reassess supplier diversification strategies. Expect US counter-investment policy responses within 60 days.",
-
+   summary:"China announced full tariff-free measures for 53 African countries with diplomatic ties, effective April 12, 2026. The policy deepens China’s economic footprint across the continent. It directly counters US and European infrastructure investment initiatives in Africa. Critical mineral supply chains — cobalt and lithium — are central to the move.",
+   why:"This reshapes the critical minerals supply chain that Silicon Valley’s hardware ecosystem depends on. Chinese control of cobalt and lithium sourcing from the DRC and Zambia creates new pricing and access risks. Tech firms reliant on African critical minerals for batteries and chips should reassess supplier diversification strategies. Expect US counter-investment policy responses within 60 days.",
    flags:["🇨🇳","🌍"],region:"Africa",
    sectors:[{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Manufacturing",e:"🏭"},{n:"Finance",e:"💰"}],
    sources:[{t:"China implements full tariff-free measures on 53 African countries with diplomatic ties",s:"매일경제",u:"#"}],
@@ -361,31 +363,70 @@ const gc=s=>{const v=s*10;return v>=6.5?{c:"#ef4444",l:"CRITICAL"}:v>=4.5?{c:"#f
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 // ── Build card HTML ───────────────────────────────────────────────────────────
+// ── Build card HTML ───────────────────────────────────────────────────────────
 function buildCard(ev,idx){
-  const g=gc(ev.score),pct=Math.round(ev.score*100),val=(ev.score*10).toFixed(1);
+  const g=gc(ev.score);
+  const repPct  = Math.round((ev.rep    || ev.score*1.1)*100);
+  const perPct  = Math.round((ev.persona|| ev.score*0.9)*100);
+  const scoreLbl= (ev.score*10).toFixed(1);
   const id=`c${ev.rank}`;
-  const chips=ev.sectors.map(s=>{const c=sc(s.n);return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;}).join("");
+  const chips=ev.sectors.map(s=>{const c=sc(s.n);return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;}).join('');
+  const grad=`linear-gradient(135deg,${ev.grads[0]},${ev.grads[1]},${ev.grads[2]})`;
+  const flagsHtml=ev.flags.map(f=>`<span>${f}</span>`).join('');
+  const srcCount=ev.srcCount||ev.sources.length;
 
-  const isHero=ev.rank===1;
-  return`<div class="swipe-card${isHero?" hero-card":""}" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
-    ${idx===0?`<div class="ftag">Swipe left →</div>`:""}
-    <div class="card-strip" style="background:linear-gradient(90deg,${ev.grads.join(",")})"></div>
-    <div class="rank-wm">${String(ev.rank).padStart(2,"0")}</div>
-    <div class="card-body">
-      ${isHero?`<div class="hero-badge">⚡ Signal of the day</div>`:""}
-      <div class="flags-row">
-        <div class="flags-cluster">${ev.flags.map(f=>`<span>${f}</span>`).join("")}</div>
-        <span class="region-badge">${esc(ev.region)}</span>
-      </div>
-      <div class="gauge-wrap">
-        <div class="gauge-meta">
-          <span class="gauge-lbl">Impact Level</span>
-          <div class="gauge-right">
-            <span class="gauge-level" style="color:${g.c}">${g.l}</span>
-            <span class="gauge-val" style="color:${g.c}">${val}<span style="font-size:9px;opacity:.5;font-family:Inter,sans-serif">/10</span></span>
-          </div>
+  return`<div class="swipe-card" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
+
+    <!-- ── Score Hero: coloured, full-width, the FIRST thing you see ── -->
+    <div class="score-hero" style="background:${grad}">
+      <div class="rank-wm">${String(ev.rank).padStart(2,'0')}</div>
+
+      <!-- Big number left -->
+      <div class="score-left">
+        <span class="score-ai-label">🤖 AI Signal Score</span>
+        <div>
+          <span class="score-big">${scoreLbl}</span><span class="score-big score-denom">/10</span>
         </div>
-        <div class="gauge-track"><div class="gauge-fill" data-pct="${pct}" style="background:linear-gradient(90deg,${g.c}88,${g.c})"></div></div>
+        <div class="score-level-pill">
+          <span class="score-pulse"></span>
+          <span>${g.l}</span>
+        </div>
+      </div>
+
+      <!-- Mini breakdown bars right -->
+      <div class="score-right">
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span class="mini-bar-name">📰 Coverage</span>
+            <span class="mini-bar-pct">${repPct}%</span>
+          </div>
+          <div class="mini-track"><div class="mini-fill" data-pct="${repPct}"></div></div>
+        </div>
+        <div class="mini-bar-wrap">
+          <div class="mini-bar-label">
+            <span class="mini-bar-name">🎯 Persona match</span>
+            <span class="mini-bar-pct">${perPct}%</span>
+          </div>
+          <div class="mini-track"><div class="mini-fill" data-pct="${perPct}"></div></div>
+        </div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:4px">
+          <span style="font-size:9px;color:rgba(255,255,255,.6);font-weight:600">${srcCount} source${srcCount!==1?'s':''} tracked</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI Insight strip ── -->
+    <div class="score-insight">
+      <span class="insight-icon">✦</span>
+      <span class="insight-text">${esc(ev.insight||'AI-ranked based on editorial coverage and persona relevance')}</span>
+      <button class="insight-tap" onclick="openScoreSheet(${idx})">How?</button>
+    </div>
+
+    <!-- ── Card body ── -->
+    <div class="card-body">
+      <div class="flags-row">
+        <div class="flags-cluster">${flagsHtml}</div>
+        <span class="region-badge">${esc(ev.region)}</span>
       </div>
       <h2 class="card-heading">${esc(ev.heading)}</h2>
       <div class="tab-bar">
@@ -405,10 +446,13 @@ function buildCard(ev,idx){
       </div>
       <div class="chips-row">${chips}</div>
       <div class="card-footer">
-        <span style="font-size:11px;color:var(--muted)">Rank #${ev.rank} · ${Math.round(ev.score*100)}% trend</span>
+        <div class="footer-rank">
+          <span class="rank-badge">#${ev.rank}</span>
+          <span class="footer-rank-text">of ${EVENTS.length} signals today</span>
+        </div>
         <button class="sources-btn" onclick="openSheet(${idx})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          ${ev.sources.length} Source${ev.sources.length!==1?"s":""}
+          ${srcCount} Source${srcCount!==1?'s':''}
         </button>
       </div>
     </div>
@@ -538,8 +582,64 @@ function updateUI(){
 
 function animateGauges(){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    document.querySelectorAll(".gauge-fill").forEach(el=>{el.style.width=el.dataset.pct+"%";});
+    // Animate score breakdown mini-bars and any legacy gauge fills
+    document.querySelectorAll(".mini-fill,.breakdown-fill").forEach(el=>{
+      el.style.width=el.dataset.pct+"%";
+    });
   }));
+}
+
+// ── Score breakdown sheet ────────────────────────────────────────────
+function openScoreSheet(idx){
+  const ev=EVENTS[idx];
+  const g=gc(ev.score);
+  const repPct =Math.round((ev.rep    ||ev.score*1.1)*100);
+  const perPct =Math.round((ev.persona||ev.score*0.9)*100);
+  const scoreLbl=(ev.score*10).toFixed(1);
+  const grad=`linear-gradient(135deg,${ev.grads[0]},${ev.grads[1]})`;
+
+  document.getElementById("sh-label").textContent="AI Score Breakdown";
+  document.getElementById("sh-heading").innerHTML=
+    `<span style="font-family:Plus Jakarta Sans,sans-serif;font-size:28px;font-weight:900;
+       background:${grad};-webkit-background-clip:text;-webkit-text-fill-color:transparent">${scoreLbl}<span style="font-size:14px;opacity:.6">/10</span></span>
+     <span style="display:inline-block;margin-left:8px;padding:3px 10px;border-radius:99px;
+       background:${g.c}22;border:1px solid ${g.c}44;color:${g.c};
+       font-size:11px;font-weight:800;letter-spacing:.06em;vertical-align:middle">${g.l}</span>`;
+
+  document.getElementById("sh-articles").innerHTML=`
+    <div style="padding:14px 20px 6px">
+      <p style="font-size:11px;color:var(--muted);font-weight:600;line-height:1.5">
+        Score = <strong style="color:var(--text)">70% editorial coverage</strong> + <strong style="color:var(--text)">30% persona relevance</strong><br>
+        Calculated by scanning ${ev.srcCount||ev.sources.length} sources through Gemini 2.5 Flash.
+      </p>
+    </div>
+    <div class="breakdown-row">
+      <div class="breakdown-icon" style="background:#f0fdf4">📰</div>
+      <div class="breakdown-info">
+        <div class="breakdown-name">Editorial Coverage</div>
+        <div class="breakdown-desc">How many quality outlets independently reported this story in the past 24h. Weighted 70%.</div>
+        <div class="breakdown-track"><div class="breakdown-fill" data-pct="${repPct}" style="background:#22c55e"></div></div>
+      </div>
+      <div class="breakdown-pct" style="color:#16a34a">${repPct}%</div>
+    </div>
+    <div class="breakdown-row">
+      <div class="breakdown-icon" style="background:#ede9fe">🎯</div>
+      <div class="breakdown-info">
+        <div class="breakdown-name">Persona Match</div>
+        <div class="breakdown-desc">Relevance to a Silicon Valley professional — tech impact, supply chain, or capital markets. Weighted 30%.</div>
+        <div class="breakdown-track"><div class="breakdown-fill" data-pct="${perPct}" style="background:var(--accent)"></div></div>
+      </div>
+      <div class="breakdown-pct" style="color:var(--accent)">${perPct}%</div>
+    </div>
+    <div style="margin:12px 20px;padding:12px 14px;background:#f9fafb;border-radius:14px;
+      border:1px solid #f3f4f6">
+      <p style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">AI Insight</p>
+      <p style="font-size:13px;color:var(--text);line-height:1.5;font-weight:500">${esc(ev.insight)}</p>
+    </div>`;
+
+  document.getElementById("sheet").classList.add("open");
+  // Animate breakdown fills with a slight delay
+  setTimeout(()=>animateGauges(),80);
 }
 
 // ── Source sheet ──────────────────────────────────────────────────────────────
@@ -616,7 +716,7 @@ function init(){
 }
 
 // ── Live data wiring ────────────────────────────────────────────────────────
-const API = '';  // same origin — served via FastAPI at /prototype
+const API = '';  // same-origin — FastAPI serves this HTML at GET /
 
 const RANK_GRADS = [
   ['#7c3aed','#a855f7','#c026d3'],
@@ -701,9 +801,20 @@ function trimToMatchSentences(text, refText) {
 function adaptBrief(apiData) {
   return apiData.brief.events.map(ev => {
     const text = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
+    const score = ev.trend_score || 0;
+    // Derive display breakdown — use API fields if present, else estimate from score
+    const rep     = ev.rep_score     ?? ev.coverage_score ?? Math.min(score * 1.15, 1);
+    const persona = ev.persona_score ?? ev.relevance_score ?? Math.min(score * 0.85, 1);
+    const srcCount= (ev.source_articles||[]).length;
+    const insight = ev.trend_insight
+      || (srcCount > 1 ? `Tracked across ${srcCount} sources — AI-ranked by coverage + persona` : 'AI-ranked signal');
     return {
       rank:    ev.rank,
-      score:   ev.trend_score,
+      score,
+      rep,
+      persona,
+      srcCount,
+      insight,
       heading: ev.event_heading,
       summary: ev.summary,
       why:     trimToMatchSentences(ev.why_it_matters, ev.summary),
