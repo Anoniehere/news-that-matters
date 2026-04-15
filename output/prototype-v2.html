@@ -129,20 +129,9 @@
       color:var(--accent);margin-bottom:5px}
 
     /* ── Timeline FEAT 3 ── */
-    .timeline{display:flex;align-items:flex-start;flex-shrink:0}
-    .tl-node{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
-    .tl-dot{width:9px;height:9px;border-radius:99px;position:relative;z-index:1;flex-shrink:0}
-    .tl-dot.past{background:var(--accent)}
-    .tl-dot.now{background:#111827}
-    .tl-dot.future{background:transparent;border:2px dashed #d1d5db}
-    .tl-line{position:absolute;top:4px;left:50%;right:-50%;height:1px;z-index:0}
-    .tl-line.solid{background:#e5e7eb}
-    .tl-line.dashed{background:repeating-linear-gradient(90deg,#d1d5db 0,#d1d5db 4px,transparent 4px,transparent 8px)}
-    .tl-node:last-child .tl-line{display:none}
-    .tl-label{font-size:9px;font-weight:600;color:var(--muted);margin-top:5px;text-align:center;line-height:1.3;max-width:72px}
-    .tl-label b{display:block;color:var(--sub);font-size:9px;margin-bottom:1px}
+    
     @keyframes nowPulse{0%,100%{box-shadow:0 0 0 3px rgba(124,58,237,.15)}50%{box-shadow:0 0 0 5px rgba(124,58,237,.05)}}
-    .tl-dot.now{animation:nowPulse 2.2s infinite}
+    
 
     /* ── Sector chips ── */
     .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;flex-shrink:0}
@@ -315,7 +304,7 @@ let EVENTS=[
    heading:"US-Iran Ceasefire Deal Weakens Dollar, Shifts Global Risk Appetite",
    summary:"A ceasefire deal between the United States and Iran was reported in early April 2026, marking a significant de-escalation of geopolitical tensions. This immediately led to a substantial weakening of the U.S. Dollar — its worst weekly drop since January. Investors responded by rotating capital toward risk assets globally. The development signals a potential reconfiguration of geopolitical risk premiums in markets.",
    why:"For Silicon Valley professionals, this de-escalation can significantly impact global capital flows. Easing tensions may encourage greater appetite for risk in emerging markets, opening new avenues for tech investment. The weakening dollar could affect purchasing power of US tech firms operating internationally and alter currency hedging strategies. Watch for shifts in venture capital appetite and cross-border M&A in coming weeks.",
-   tl:[{s:"past",d:"Apr 9",l:"Tensions peak"},{s:"now",d:"Apr 11",l:"Deal emerges"},{s:"future",d:"~Apr 18",l:"Stability watch"}],
+
    flags:["🇺🇸","🇮🇷"],region:"Middle East",
    sectors:[{n:"Finance",e:"💰"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"Dollar Plummets: Worst Weekly Drop Since January After US-Iran Deal",s:"CryptoRank",u:"#"},{t:"US Dollar Falls as Iran Ceasefire Hopes Spark Flight to Risk Assets",s:"CryptoRank",u:"#"},{t:"Australian Dollar Drops as US-Iran Ceasefire Hopes Evaporate",s:"CryptoRank",u:"#"}],
@@ -324,7 +313,7 @@ let EVENTS=[
    heading:"US-Iran Ceasefire Talks Begin in Islamabad Amid Critical Stakes",
    summary:"Historic ceasefire negotiations between the US and Iran commenced in Islamabad on April 11, 2026. The talks hinge on a final 10-point proposal addressing key disputes. Pakistan's role as host signals a shift toward multipolar diplomatic mediation. Both sides appear willing to engage, though significant sticking points remain.",
    why:"Geopolitical stability in the Middle East directly influences global energy markets, impacting operational costs for data centers and tech manufacturing. A successful ceasefire could ease regional tensions and reduce supply chain disruption risk. Silicon Valley firms with exposure to Gulf markets or dependent on stable energy prices should monitor outcomes closely. Export control and sanctions policy may shift in response to any deal.",
-   tl:[{s:"past",d:"Apr 10",l:"Proposal tabled"},{s:"now",d:"Apr 11",l:"Talks begin"},{s:"future",d:"TBD",l:"Deal or breakdown"}],
+
    flags:["🇺🇸","🇮🇷","🇵🇰"],region:"South Asia",
    sectors:[{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"},{n:"Defence",e:"🛡️"},{n:"Finance",e:"💰"}],
    sources:[{t:"Critical Ceasefire Hinges on Final 10-Point Proposal",s:"CryptoRank",u:"#"},{t:"Historic Islamabad Negotiations Begin April 11 with Critical Stakes",s:"CryptoRank",u:"#"}],
@@ -333,7 +322,7 @@ let EVENTS=[
    heading:"Middle East Geopolitical Conundrum and Shifting Power Dynamics",
    summary:"The Middle East remains a complex arena of proxies and strategic levers, with no single actor holding decisive control. Long-standing rivalries continue to evolve as external powers reposition. The ceasefire window is creating unexpected diplomatic space. Analysts warn that proxy realignments could outlast any formal agreement.",
    why:"Persistent instability creates ongoing supply chain risk for hardware manufacturing and energy-dependent data infrastructure. Increased regional instability could disrupt shipping lanes critical to tech component sourcing. Companies with manufacturing in Turkey, UAE, or Saudi Arabia face elevated operational risk. Monitor for secondary sanctions that could restrict tech exports to the region.",
-   tl:[{s:"past",d:"Historical",l:"Deep rivalry"},{s:"now",d:"Apr 2026",l:"Realignment"},{s:"future",d:"Q2 2026",l:"Alliance shifts"}],
+
    flags:["🌍"],region:"Middle East",
    sectors:[{n:"Defence",e:"🛡️"},{n:"Energy",e:"⚡"},{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"}],
    sources:[{t:"Proxies and levers: The Middle East conundrum",s:"Times of India",u:"#"}],
@@ -342,7 +331,7 @@ let EVENTS=[
    heading:"India's West Asia Diplomacy Balances Gulf Ties and Iran Engagement",
    summary:"India successfully navigated the War in West Asia by deepening Gulf relationships while keeping Iran diplomatic channels open. This balancing act reflects India's broader strategy of non-alignment in great-power competition. The approach has strengthened India's role as an emerging multipolar broker. Analysts view this as a model for middle-power diplomacy in a fragmented world.",
    why:"India's diplomatic agility has direct implications for Silicon Valley's supply chain and talent pipeline. Stable India-Gulf relations protect critical semiconductor and mineral trade routes. India's growing clout makes it an increasingly important partner for US tech firms expanding into South Asia. A stable India-Iran channel reduces risk of tech export disruptions through the region.",
-   tl:[{s:"past",d:"2024",l:"War begins"},{s:"now",d:"Apr 2026",l:"India brokers"},{s:"future",d:"May 2026",l:"GCC tech summit"}],
+
    flags:["🇮🇳","🇦🇪","🇮🇷"],region:"South Asia",
    sectors:[{n:"Technology",e:"💻"},{n:"Manufacturing",e:"🏭"},{n:"Policy",e:"⚖️"},{n:"Energy",e:"⚡"}],
    sources:[{t:"How India navigated the War in West Asia, deepening Gulf ties while keeping Iran channel open",s:"Punjab Kesari",u:"#"}],
@@ -351,7 +340,7 @@ let EVENTS=[
    heading:"China Expands Tariff-Free Trade with 53 African Nations",
    summary:"China announced full tariff-free measures for 53 African countries with diplomatic ties, effective April 12, 2026. The policy deepens China's economic footprint across the continent. It directly counters US and European infrastructure investment initiatives in Africa. Critical mineral supply chains — cobalt and lithium — are central to the move.",
    why:"This reshapes the critical minerals supply chain that Silicon Valley's hardware ecosystem depends on. Chinese control of cobalt and lithium sourcing from the DRC and Zambia creates new pricing and access risks. Tech firms reliant on African critical minerals for batteries and chips should reassess supplier diversification strategies. Expect US counter-investment policy responses within 60 days.",
-   tl:[{s:"past",d:"Mar 2026",l:"Announced"},{s:"now",d:"Apr 12",l:"Effective"},{s:"future",d:"Q3 2026",l:"Integration"}],
+
    flags:["🇨🇳","🌍"],region:"Africa",
    sectors:[{n:"Technology",e:"💻"},{n:"Policy",e:"⚖️"},{n:"Manufacturing",e:"🏭"},{n:"Finance",e:"💰"}],
    sources:[{t:"China implements full tariff-free measures on 53 African countries with diplomatic ties",s:"매일경제",u:"#"}],
@@ -376,10 +365,6 @@ function buildCard(ev,idx){
   const g=gc(ev.score),pct=Math.round(ev.score*100),val=(ev.score*10).toFixed(1);
   const id=`c${ev.rank}`;
   const chips=ev.sectors.map(s=>{const c=sc(s.n);return`<span class="chip" style="background:${c.bg};border:1px solid ${c.b};color:${c.t}">${s.e} ${esc(s.n)}</span>`;}).join("");
-  const tl=ev.tl.map((n,i)=>{
-    const last=i===ev.tl.length-1;
-    return`<div class="tl-node"><div style="position:relative;width:100%;display:flex;justify-content:center"><div class="tl-dot ${n.s}"></div>${!last?`<div class="tl-line ${n.s==="past"?"solid":"dashed"}"></div>`:""}</div><div class="tl-label"><b>${esc(n.d)}</b>${esc(n.l)}</div></div>`;
-  }).join("");
 
   const isHero=ev.rank===1;
   return`<div class="swipe-card${isHero?" hero-card":""}" data-idx="${idx}" id="card-${idx}" style="z-index:${EVENTS.length-idx}">
@@ -410,14 +395,12 @@ function buildCard(ev,idx){
       <div class="tab-content" id="${id}-wrap">
         <div id="${id}-happened" class="tab-pane active">
           <p class="body-text">${esc(ev.summary)}</p>
-          <div class="timeline">${tl}</div>
         </div>
         <div id="${id}-matters" class="tab-pane">
           <div class="matters-box">
             <p class="matters-lbl">Why it matters to you</p>
             <p class="body-text" style="color:#374151;margin-bottom:0">${esc(ev.why)}</p>
           </div>
-          <div class="timeline">${tl}</div>
         </div>
       </div>
       <div class="chips-row">${chips}</div>
@@ -699,18 +682,6 @@ function detectRegion(text) {
   return 'Global';
 }
 
-function buildTimeline(sourceArticles) {
-  if (!sourceArticles || sourceArticles.length === 0)
-    return [{s:'now',d:'Today',l:'Developing'}];
-  const sorted = [...sourceArticles].sort((a,b) => new Date(a.published_at)-new Date(b.published_at));
-  const fmt = iso => new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  const tl = [];
-  if (sorted.length >= 2) tl.push({s:'past',d:fmt(sorted[0].published_at),l:'Emerged'});
-  tl.push({s:'now',d:fmt(sorted[sorted.length-1].published_at),l:'Latest'});
-  tl.push({s:'future',d:'Watch',l:'Developing'});
-  return tl;
-}
-
 function cleanTitle(t) {
   return t.replace(/ - [^-]+$/, '').replace(/ \| .+$/, '').trim();
 }
@@ -736,7 +707,6 @@ function adaptBrief(apiData) {
       heading: ev.event_heading,
       summary: ev.summary,
       why:     trimToMatchSentences(ev.why_it_matters, ev.summary),
-      tl:      buildTimeline(ev.source_articles),
       flags:   detectFlags(text),
       region:  detectRegion(text),
       sectors: ev.sectors_impacted.slice(0,4).map(s => ({n:s.name, e:sectorEmoji(s.name)})),
