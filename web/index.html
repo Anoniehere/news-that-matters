@@ -158,11 +158,6 @@
     .matters-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
       color:var(--accent);margin-bottom:5px}
 
-    /* ── Timeline FEAT 3 ── */
-    
-    @keyframes nowPulse{0%,100%{box-shadow:0 0 0 3px rgba(124,58,237,.15)}50%{box-shadow:0 0 0 5px rgba(124,58,237,.05)}}
-    
-
     /* ── Sector chips ── */
     .chips-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;flex-shrink:0}
     .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
@@ -826,31 +821,47 @@ function trimToMatchSentences(text, refText) {
   return sentences.slice(0, targetCount).join(' ').trim();
 }
 
+/** Parse rep + persona scores out of the trend_insight string the API returns.
+ * Format: "93% signal score: 100% coverage (70%) + 76% persona relevance (30%)..."
+ * Falls back to score-derived estimates if the string doesn't match. */
+function parseInsightScores(insight, score) {
+  if (insight) {
+    // Match "100% coverage" and "76% persona relevance"
+    const covM = insight.match(/(\d+)%\s*coverage/);
+    const perM = insight.match(/(\d+)%\s*persona/);
+    if (covM && perM) {
+      return { rep: parseInt(covM[1]) / 100, persona: parseInt(perM[1]) / 100 };
+    }
+  }
+  // Fallback: derive from weighted formula — rep weighted 70%, persona 30%
+  // Can't solve exactly from one number, so use score as a symmetric estimate
+  return { rep: Math.min(score * 1.15, 1), persona: Math.min(score * 0.85, 1) };
+}
+
 function adaptBrief(apiData) {
   return apiData.brief.events.map(ev => {
-    const text = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
-    const score = ev.trend_score || 0;
-    // Derive display breakdown — use API fields if present, else estimate from score
-    const rep     = ev.rep_score     ?? ev.coverage_score ?? Math.min(score * 1.15, 1);
-    const persona = ev.persona_score ?? ev.relevance_score ?? Math.min(score * 0.85, 1);
-    const srcCount= (ev.source_articles||[]).length;
-    const insight = ev.trend_insight
-      || (srcCount > 1 ? `Tracked across ${srcCount} sources — AI-ranked by coverage + persona` : 'AI-ranked signal');
+    const text    = `${ev.event_heading} ${ev.summary} ${ev.why_it_matters}`;
+    const score   = ev.trend_score || 0;
+    const insight = ev.trend_insight || '';
+    const { rep, persona } = parseInsightScores(insight, score);
+    const srcCount = (ev.source_articles || []).length;
+    // Trim the insight to just the first sentence so it fits the breakdown sheet cleanly
+    const insightShort = insight ? insight.split('.')[0] + '.' : 'AI-ranked by coverage + persona relevance.';
     return {
-      rank:    ev.rank,
+      rank:     ev.rank,
       score,
       rep,
       persona,
       srcCount,
-      insight,
-      heading: ev.event_heading,
-      summary: ev.summary,
-      why:     trimToMatchSentences(ev.why_it_matters, ev.summary),
-      flags:   detectFlags(text),
-      region:  detectRegion(text),
-      sectors: ev.sectors_impacted.slice(0,4).map(s => ({n:s.name, e:sectorEmoji(s.name)})),
-      sources: ev.source_articles.map(a => ({t:cleanTitle(a.title), s:a.source_name, u:a.url})),
-      grads:   RANK_GRADS[(ev.rank-1) % RANK_GRADS.length],
+      insight:  insightShort,
+      heading:  ev.event_heading,
+      summary:  ev.summary,
+      why:      trimToMatchSentences(ev.why_it_matters, ev.summary),
+      flags:    detectFlags(text),
+      region:   detectRegion(text),
+      sectors:  ev.sectors_impacted.slice(0, 4).map(s => ({ n: s.name, e: sectorEmoji(s.name) })),
+      sources:  ev.source_articles.map(a => ({ t: cleanTitle(a.title), s: a.source_name, u: a.url })),
+      grads:    RANK_GRADS[(ev.rank - 1) % RANK_GRADS.length],
     };
   });
 }
