@@ -141,6 +141,18 @@ STRICT RULES you must follow:
      Cover: direct impact on Silicon Valley professionals, second-order effects,
      what to watch for next, and one concrete implication for tech/startup ecosystem.
      Every sentence must be complete. Do NOT truncate mid-thought.
+   - "timeline_context": exactly 2 sentences.
+     Sentence 1 — ORIGIN: State specifically when and how this story started.
+       Use a concrete date, month, or named event (e.g. "This dispute escalated in
+       March 2026 when...", "Tensions began after the January G7 summit...").
+       Do NOT write "recently", "ongoing", "over the past few months", or any
+       vague timeframe. A date or named trigger is required.
+     Sentence 2 — WATCHPOINT: Name one specific, concrete thing to watch for next.
+       Examples: a vote, a deadline, a summit, a court ruling, a trade negotiation
+       round, a sanctions review date, a central bank meeting.
+       Do NOT write "future developments", "remains to be seen", "is evolving",
+       "will depend on", "the situation may", or any hedge that provides no
+       actionable information. A named event or deadline is required.
 
 OUTPUT JSON SCHEMA:
 {
@@ -148,7 +160,7 @@ OUTPUT JSON SCHEMA:
   "summary":           "<string — 3-5 complete sentences. What happened, who, when, consequence.>",
   "why_it_matters":    "<string — 3-5 complete sentences, Silicon Valley geo-political lens.>",
   "sectors_impacted":  [{"name": "<sector>", "confidence": <0.0-1.0>}],
-  "timeline_context":  "<string — 1-2 sentences: when this started + what happens next>"
+  "timeline_context":  "<2 sentences: sentence 1 = specific origin date/trigger, sentence 2 = named next watchpoint>"
 }
 
 Valid sector names (use ONLY these):
@@ -207,6 +219,63 @@ def _validate_llm_dict(raw: dict) -> None:
             # Soft trim to 5 — preserves good content, avoids wasted retry
             log.warning("'%s' has %d sentences — trimming to 5.", field, len(sentences))
             raw[field] = " ".join(sentences[:5])
+
+    # timeline_context guardrails — must be specific, not filler.
+    _tl = raw["timeline_context"].strip()
+    _tl_lower = _tl.lower()
+
+    # Must have exactly 2 sentences (origin + watchpoint).
+    _tl_sentences = [s for s in _sent_split.split(_tl) if s.strip()]
+    if len(_tl_sentences) < 2:
+        raise ValueError(
+            f"'timeline_context' has only {len(_tl_sentences)} sentence(s) — "
+            f"must have 2: one origin sentence + one watchpoint sentence. Retrying."
+        )
+    if len(_tl_sentences) > 2:
+        # Soft trim — keep only the 2 most informative sentences
+        log.warning("'timeline_context' has %d sentences — trimming to 2.", len(_tl_sentences))
+        raw["timeline_context"] = " ".join(_tl_sentences[:2])
+        _tl_lower = raw["timeline_context"].lower()
+
+    # Must contain at least one temporal anchor (month name, year, or numeric date).
+    import re as _re2
+    _temporal_pattern = _re2.compile(
+        r'\b(january|february|march|april|may|june|july|august|september|october|'
+        r'november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|'
+        r'2024|2025|2026|q1|q2|q3|q4|this week|last week|monday|tuesday|'
+        r'wednesday|thursday|friday|saturday|sunday|\d{1,2}/\d{1,2}|'
+        r'yesterday|last month|next week|next month)\b',
+        _re2.IGNORECASE
+    )
+    if not _temporal_pattern.search(_tl):
+        raise ValueError(
+            "'timeline_context' lacks a specific temporal anchor (month, year, or date). "
+            "Must state when this story started with a concrete timeframe. Retrying."
+        )
+
+    # Must NOT be generic filler — banned pal zero information.
+    _tl_banned = [
+        "remains to be seen",
+        "remains uncertain",
+        "future developments",
+        "will likely depend",
+        "is expected to continue",
+        "trajectory and outcome",
+        "evolving geopolitical",
+        "evolving dynamics",
+        "the situation may",
+        "ongoing tensions",
+        "ongoing critical",
+        "continues to evolve",
+        "will depend on how",
+        "the next steps involve observing",
+    ]
+    for phrase in _tl_banned:
+        if phrase in _tl_lower:
+            raise ValueError(
+                f"'timeline_context' contains banned filler phrase: '{phrase}'. "
+                f"Must name a specific origin event and a concrete watchpoint. Retrying."
+            )
 
     if not isinstance(raw["sectors_impacted"], list) or len(raw["sectors_impacted"]) == 0:
         raise ValueError("sectors_impacted must be a non-empty list")
