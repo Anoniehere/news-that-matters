@@ -22,5 +22,12 @@ output/*.json
 # AI-generated design assets — too large for git
 Gemini_Generated_Image_*.png
 
+# Internal AI agent dev files — not relevant to public repo
+AGENTS.md
+CONTEXT.md
+
+# Pipeline HTML debug output — transient
+output/*.html
+
 # macOS
 .DS_Store
