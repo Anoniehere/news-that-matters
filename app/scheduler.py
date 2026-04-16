@@ -17,11 +17,29 @@ from __future__ import annotations
 
 import logging
 import os
+import urllib.request
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 log = logging.getLogger(__name__)
+
+
+def _keepalive_ping() -> None:
+    """Ping /health on Render every 14 min to prevent free-tier sleep.
+
+    Render spins down instances after 15 min of inactivity — this keeps
+    the app always warm so visitors never hit the cold-start splash screen.
+    Only runs when RENDER_EXTERNAL_URL is set (i.e. on Render, not locally).
+    """
+    base_url = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")
+    if not base_url:
+        return  # not on Render — skip silently
+    try:
+        urllib.request.urlopen(f"{base_url}/health", timeout=10)  # noqa: S310
+        log.debug("Keepalive ✓ pinged %s/health", base_url)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Keepalive ping failed (non-fatal): %s", exc)
 
 
 def run_pipeline_job() -> None:
@@ -74,5 +92,12 @@ def build_scheduler() -> BackgroundScheduler:
         name="News That Matters full pipeline",
         replace_existing=True,
     )
-    log.info("Scheduler: pipeline job registered — every %d min", interval_min)
+    scheduler.add_job(
+        _keepalive_ping,
+        trigger=IntervalTrigger(minutes=14, timezone="UTC"),
+        id="keepalive",
+        name="Render keepalive ping",
+        replace_existing=True,
+    )
+    log.info("Scheduler: pipeline every %d min · keepalive every 14 min", interval_min)
     return scheduler

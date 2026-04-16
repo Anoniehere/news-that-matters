@@ -897,9 +897,9 @@ function showBanner(text, type = 'info') {
 async function fetchAndInit() {
   let usedFallback = false;
   try {
-    // 3-second hard timeout — static data already visible, don't keep re-init waiting
+    // 8-second timeout — enough for Render warm response, static data already visible
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
+    const timer = setTimeout(() => controller.abort(), 8000);
 
     const res = await fetch(API + '/brief', { signal: controller.signal });
     clearTimeout(timer);
