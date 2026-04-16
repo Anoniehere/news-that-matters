@@ -57,20 +57,19 @@ html = """<!DOCTYPE html>
 <script>
 mermaid.initialize({ startOnLoad: false, theme: 'neutral', flowchart: { curve: 'basis' } });
 
+// marked v11 passes a token object {text, lang} — not (code, lang)
 marked.use({
   gfm: true,
   breaks: false,
-  renderer: (() => {
-    const r = new marked.Renderer();
-    r.code = (code, lang) => {
+  renderer: {
+    code({ text, lang }) {
       if (lang === 'mermaid') {
-        return `<div class="mermaid">${code}</div>`;
+        return `<div class="mermaid">${text}</div>`;
       }
-      const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `<pre><code class="language-${lang || ''}">${escaped}</code></pre>`;
-    };
-    return r;
-  })()
+    }
+  }
 });
 
 const raw = README_JS_PLACEHOLDER;
