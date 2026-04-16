@@ -1,5 +1,5 @@
 """Generate docs/readme-preview.html — self-contained README viewer with Mermaid + SVG mockups."""
-import base64, json, pathlib, re
+import base64, json, pathlib
 
 ROOT = pathlib.Path(__file__).parent.parent
 
@@ -8,19 +8,9 @@ hero_b64  = base64.b64encode((ROOT / "docs/hero.svg").read_bytes()).decode()
 tabs_b64  = base64.b64encode((ROOT / "docs/card-tabs.svg").read_bytes()).decode()
 sheet_b64 = base64.b64encode((ROOT / "docs/score-sheet.svg").read_bytes()).decode()
 
-# Swap image paths for inline base64 data URIs
-readme = readme.replace("docs/hero.svg",        f"data:image/svg+xml;base64,{hero_b64}")
-readme = readme.replace("docs/card-tabs.svg",   f"data:image/svg+xml;base64,{tabs_b64}")
-readme = readme.replace("docs/score-sheet.svg", f"data:image/svg+xml;base64,{sheet_b64}")
-
-# Pre-process mermaid blocks in Python so marked.js needs zero custom renderer.
-# ```mermaid\n...``` → <div class="mermaid">...</div>
-readme = re.sub(
-    r"```mermaid\n(.*?)```",
-    lambda m: f'<div class="mermaid">{m.group(1)}</div>',
-    readme,
-    flags=re.DOTALL
-)
+readme = readme.replace("docs/hero.svg",       f"data:image/svg+xml;base64,{hero_b64}")
+readme = readme.replace("docs/card-tabs.svg",  f"data:image/svg+xml;base64,{tabs_b64}")
+readme = readme.replace("docs/score-sheet.svg",f"data:image/svg+xml;base64,{sheet_b64}")
 
 readme_js = json.dumps(readme)
 
@@ -67,9 +57,21 @@ html = """<!DOCTYPE html>
 <script>
 mermaid.initialize({ startOnLoad: false, theme: 'neutral', flowchart: { curve: 'basis' } });
 
-// No custom renderer needed — mermaid blocks are pre-processed to
-// <div class="mermaid"> by the Python generator before JSON encoding.
-marked.use({ gfm: true, breaks: false });
+marked.use({
+  gfm: true,
+  breaks: false,
+  renderer: (() => {
+    const r = new marked.Renderer();
+    r.code = (code, lang) => {
+      if (lang === 'mermaid') {
+        return `<div class="mermaid">${code}</div>`;
+      }
+      const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<pre><code class="language-${lang || ''}">${escaped}</code></pre>`;
+    };
+    return r;
+  })()
+});
 
 const raw = README_JS_PLACEHOLDER;
 document.getElementById('content').innerHTML = marked.parse(raw);
