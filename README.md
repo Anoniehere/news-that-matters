@@ -186,19 +186,6 @@ The TF-IDF fallback exists because `sentence-transformers` requires a network do
 </details>
 
 <details>
-<summary><b>Why does the card end above the fold?</b></summary>
-
-<br>
-
-If a card fills the entire screen, it looks like the whole app. There's no visual signal that there are 4 more stories below it.
-
-Ending the card ~56px above the bottom of the screen lets the lavender gradient background peek through underneath. It's a passive "there's more here" signal that doesn't require onboarding, tooltips, or a "swipe to see more" label. The gap does the work.
-
-This is the kind of detail that doesn't show up in PRDs but makes the difference between an app that feels finished and one that feels like a prototype. Small affordances, compounding effect.
-
-</details>
-
-<details>
 <summary><b>Why does the app never show a blank screen?</b></summary>
 
 <br>
