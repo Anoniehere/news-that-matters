@@ -42,23 +42,22 @@ The score is shown on every card. The inputs that produced it are shown too. The
 This is the part I'm most proud of. Not the UI — the pipeline that decides what you see before you ever open the app.
 
 ```mermaid
-flowchart LR
+flowchart TD
     A(["🌐 12 RSS Feeds"])
-    B["📥 Fetch & Clean\n~200 articles · 24h window"]
-    C["🧠 Cluster\nMiniLM embeddings + DBSCAN\nTF-IDF fallback"]
-    D["📊 Coverage Score\nlog-normalised count\n→ top 15 candidates"]
-    E["🤖 LLM Pass 1\n1 batch Gemini call\nSector tags + persona score"]
-    F{{"⚖️ Re-rank\n0.70 × coverage\n+ 0.30 × persona"}}
-    G["✨ LLM Pass 2\n5 × Gemini\nHeadline · Summary\nWhy It Matters"]
-    H["💾 SQLite Cache\n< 500ms · hourly refresh"]
-    I(["📱 Swipe Cards"])
+    B["📥 Fetch & Cluster\n~200 articles grouped by topic"]
+    C["📊 Filter by Coverage\nTop 15 most-reported stories"]
+    D["🤖 Gemini — Pass 1\nScore all 15 for persona relevance"]
+    E{{"⚖️ Re-rank & Select\n0.70 × coverage  +  0.30 × persona fit"}}
+    F["✨ Gemini — Pass 2\nHeadline · Summary · Why It Matters"]
+    G(["📱 5 cards · scored · explained · yours"])
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I
+    A --> B --> C --> D --> E --> F --> G
 
     style A fill:#ede9fe,stroke:#7c3aed,color:#3b0764
-    style F fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    style G fill:#f0fdf4,stroke:#16a34a,color:#14532d
-    style I fill:#d1fae5,stroke:#059669,color:#064e3b
+    style D fill:#fff7ed,stroke:#ea580c,color:#431407
+    style E fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    style F fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    style G fill:#d1fae5,stroke:#059669,color:#064e3b
 ```
 
 The key design decision is the **two-pass LLM architecture**. Most obvious approach: call Gemini 5 times on the top 5 stories by article count. The problem: coverage rank ≠ relevance rank. A story covered by 20 regional newspapers might score higher than a story covered by 8 major tech outlets — but the second story is probably more interesting to a Silicon Valley professional.
