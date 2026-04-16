@@ -185,19 +185,6 @@ The TF-IDF fallback exists because `sentence-transformers` requires a network do
 
 </details>
 
-<details>
-<summary><b>Why does the app never show a blank screen?</b></summary>
-
-<br>
-
-The pipeline takes ~30 seconds to run. On first boot, on quota exhaustion, on a network failure — a lot of things can prevent fresh data from arriving.
-
-The app ships with a static brief baked into the HTML. If the API call fails or times out (3-second hard cutoff), the UI falls back to the embedded events and shows a banner. Users see real cards with real content from day one. There's no spinner followed by an error followed by a retry — which is the failure mode of apps that treat the API as a hard dependency.
-
-The brief goes stale eventually — that's fine. An amber "Showing sample brief" banner tells users what they're looking at. The alternative — a blank card stack — would have killed engagement on first open.
-
-</details>
-
 ---
 
 ## Tech stack
