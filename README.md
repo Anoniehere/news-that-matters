@@ -42,28 +42,23 @@ The score is shown on every card. The inputs that produced it are shown too. The
 This is the part I'm most proud of. Not the UI — the pipeline that decides what you see before you ever open the app.
 
 ```mermaid
-flowchart TD
-    A["🌐 12 RSS Feeds\n#nbsp;Google News · AI, Tech, Finance,\nGeopolitics, Energy & more"] --> B
+flowchart LR
+    A(["🌐 12 RSS Feeds"])
+    B["📥 Fetch & Clean\n~200 articles · 24h window"]
+    C["🧠 Cluster\nMiniLM embeddings + DBSCAN\nTF-IDF fallback"]
+    D["📊 Coverage Score\nlog-normalised count\n→ top 15 candidates"]
+    E["🤖 LLM Pass 1\n1 batch Gemini call\nSector tags + persona score"]
+    F{{"⚖️ Re-rank\n0.70 × coverage\n+ 0.30 × persona"}}
+    G["✨ LLM Pass 2\n5 × Gemini\nHeadline · Summary\nWhy It Matters"]
+    H["💾 SQLite Cache\n< 500ms · hourly refresh"]
+    I(["📱 Swipe Cards"])
 
-    B["📥 Fetch & Clean\nstep1_fetch.py\n~200 articles/day · concurrent fetch\ndedup by URL · strip HTML · 24h window"] --> C
+    A --> B --> C --> D --> E --> F --> G --> H --> I
 
-    C["🧠 Semantic Clustering\nstep2_cluster.py\nMiniLM-L6-v2 embeddings\ncosine similarity → DBSCAN\nTF-IDF fallback if offline"] --> D
-
-    D["📊 Coverage Scoring\nstep3_score.py\nlog-normalised repetition score\nhow many outlets covered this?\n→ top 15 candidates"] --> E
-
-    E["🤖 Pass 1 — Cheap Batch LLM\nstep4_enrich.py\n1 Gemini call for all 15 clusters\n→ sector tags · persona_score\nwhat would a tech pro care about?"] --> F
-
-    F{"⚖️ Re-rank\n0.70 × coverage\n+ 0.30 × persona\n→ correct top 5"} --> G
-
-    G["✨ Pass 2 — Full Enrichment\nstep4_enrich.py\n5 individual Gemini calls\n→ headline · 2-sentence summary\n→ why it matters to YOU"] --> H
-
-    H["💾 SQLite Cache\nAPI always reads from cache\n< 500ms · never blocks on pipeline\nhourly refresh via APScheduler"] --> I
-
-    I["📱 Swipe-card UI\nAI score hero · coverage + persona bars\n✦ Why It Matters tab · sources sheet"]
-
-    style A fill:#ede9fe,stroke:#7c3aed,color:#111827
-    style F fill:#fef3c7,stroke:#d97706,color:#111827
-    style I fill:#d1fae5,stroke:#059669,color:#111827
+    style A fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    style F fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    style G fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    style I fill:#d1fae5,stroke:#059669,color:#064e3b
 ```
 
 The key design decision is the **two-pass LLM architecture**. Most obvious approach: call Gemini 5 times on the top 5 stories by article count. The problem: coverage rank ≠ relevance rank. A story covered by 20 regional newspapers might score higher than a story covered by 8 major tech outlets — but the second story is probably more interesting to a Silicon Valley professional.
@@ -117,11 +112,21 @@ The gradient changes with rank. The score level (EMERGING → BUILDING → URGEN
 
 <br>
 
-**What Happened** is commodity — any news app can do this. **✦ Why It Matters** is the product. The tab is purple *even when inactive*, pulling your eye toward the AI's analysis before you've consciously decided to tap. That's not an accident.
+**What Happened** is commodity — any news app can do this.
 
-### The breakdown
+**✦ Why It Matters** is where the product earns its name. This tab isn't a summary. It's Gemini reading the full cluster of articles and generating *meaning* — specifically framed for a Silicon Valley professional. It answers: *given who you are and what you work on, why should you stop and care about this right now?* That contextualisation is the hardest part of reading the news, and the part no other app does. The tab is purple *even when inactive*, pulling your eye toward the AI's analysis before you've consciously decided to tap. That's not an accident.
 
-Tap the `↗` chip and a sheet slides up explaining the AI's full reasoning: sector classification, coverage depth, why Gemini rated this story relevant to your professional context.
+### The breakdown sheet
+
+Tap the `↗` chip and a sheet slides up explaining the AI's full reasoning: the exact coverage and persona scores, the sector classification, and the formula that combined them into the number on your card.
+
+<div align="center">
+<img src="docs/score-sheet.svg" alt="Score breakdown bottom sheet — showing Coverage 100%, Persona 76%, formula explanation and AI insight" width="320">
+</div>
+
+<br>
+
+This exists because I think AI products should be accountable to their own reasoning. If the AI says a story scores 9.3, the user deserves to know why — not as a disclaimer buried in a settings page, but as a first-class feature one tap away.
 
 ---
 
@@ -230,7 +235,7 @@ The pipeline runs automatically on first boot (~30 seconds), then hourly in the 
 
 25 decision records live in [`DECISIONS.md`](DECISIONS.md) — written in the style of a production engineering team. Topics include why DBSCAN over k-means (ADR-013), why TF-IDF as fallback (ADR-013), why the 70/30 formula (ADR-022), the two-pass LLM architecture (ADR-023), and why the timeline feature was cut (ADR-024).
 
-The ADR format forces a discipline I think all AI product decisions should have: *state the context, state the options considered, state what you chose and why.* "We used Gemini" is not an architecture decision. "We use Gemini 2.5 Flash with a 3-tier model fallback chain because X" is.
+The ADR format forces a discipline I think all AI product decisions should have: *state the context, state the options considered, state what you chose and why.* "We used Gemini" is not an architecture decision. "We use Gemini 2.5 Flash as primary, with automatic fallback to 1.5 Flash then 1.5 Flash-8B, because the free API tier has daily token limits and the pipeline must never fail silently" is.
 
 ---
 

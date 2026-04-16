@@ -1,0 +1,92 @@
+<svg width="390" height="480" viewBox="0 0 390 480" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <linearGradient id="covBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="perBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="sheetShadow">
+      <feDropShadow dx="0" dy="-4" stdDeviation="20" flood-color="rgba(0,0,0,0.12)"/>
+    </filter>
+    <clipPath id="sheetClip">
+      <rect x="0" y="40" width="390" height="440" rx="24"/>
+    </clipPath>
+  </defs>
+
+  <!-- Dimmed background (app behind) -->
+  <rect width="390" height="480" fill="rgba(17,24,39,0.35)"/>
+
+  <!-- Bottom sheet -->
+  <rect x="0" y="40" width="390" height="440" rx="24" fill="white" filter="url(#sheetShadow)"/>
+
+  <!-- Drag handle -->
+  <rect x="163" y="58" width="64" height="5" rx="2.5" fill="#e5e7eb"/>
+
+  <!-- Header -->
+  <text x="24" y="98" font-size="17" font-weight="700" fill="#111827">How this was scored</text>
+  <!-- Close button -->
+  <circle cx="358" cy="90" r="14" fill="#f3f4f6"/>
+  <text x="358" y="95" font-size="14" font-weight="600" fill="#6b7280" text-anchor="middle">✕</text>
+
+  <!-- Divider -->
+  <rect x="0" y="112" width="390" height="1" fill="#f3f4f6"/>
+
+  <!-- AI Insight strip -->
+  <rect x="0" y="112" width="390" height="40" fill="rgba(124,58,237,0.04)"/>
+  <text x="24" y="130" font-size="11" font-weight="600" fill="#7c3aed">✦</text>
+  <text x="38" y="130" font-size="11" font-weight="500" fill="#4b5563">93% signal score: 100% coverage · 76% persona relevance</text>
+  <text x="38" y="146" font-size="10" font-weight="400" fill="#9ca3af">Sectors: Technology · Policy &amp; Regulation · Manufacturing</text>
+  <rect x="0" y="152" width="390" height="1" fill="#f3f4f6"/>
+
+  <!-- Formula label -->
+  <text x="24" y="178" font-size="11" font-weight="800" fill="#9ca3af" letter-spacing="0.8">SCORING FORMULA</text>
+  <rect x="24" y="186" width="342" height="36" rx="8" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="195" y="200" font-size="11" font-weight="600" fill="#374151" text-anchor="middle">Signal Score</text>
+  <text x="195" y="216" font-size="10" font-weight="500" fill="#6b7280" text-anchor="middle">= 0.70 × Coverage Score  +  0.30 × Persona Score</text>
+
+  <!-- Coverage breakdown row -->
+  <text x="24" y="248" font-size="12" font-weight="700" fill="#111827">📰 Editorial Coverage</text>
+  <text x="366" y="248" font-size="13" font-weight="800" fill="#7c3aed" text-anchor="end">100%</text>
+  <!-- bar track -->
+  <rect x="24" y="254" width="342" height="8" rx="4" fill="#f3f4f6"/>
+  <!-- bar fill — 100% -->
+  <rect x="24" y="254" width="342" height="8" rx="4" fill="url(#covBar)"/>
+  <text x="24" y="276" font-size="10" fill="#9ca3af">How many independent outlets covered this story</text>
+  <!-- weight pill -->
+  <rect x="310" y="268" width="56" height="16" rx="8" fill="#ede9fe"/>
+  <text x="338" y="279" font-size="9" font-weight="700" fill="#6d28d9" text-anchor="middle">weight 70%</text>
+
+  <!-- Persona breakdown row -->
+  <text x="24" y="308" font-size="12" font-weight="700" fill="#111827">🎯 Persona Relevance</text>
+  <text x="366" y="308" font-size="13" font-weight="800" fill="#7c3aed" text-anchor="end">76%</text>
+  <!-- bar track -->
+  <rect x="24" y="314" width="342" height="8" rx="4" fill="#f3f4f6"/>
+  <!-- bar fill — 76% of 342 = 260px -->
+  <rect x="24" y="314" width="260" height="8" rx="4" fill="url(#perBar)"/>
+  <text x="24" y="336" font-size="10" fill="#9ca3af">Gemini's assessment: does this affect a SV tech professional?</text>
+  <!-- weight pill -->
+  <rect x="310" y="328" width="56" height="16" rx="8" fill="#ede9fe"/>
+  <text x="338" y="339" font-size="9" font-weight="700" fill="#6d28d9" text-anchor="middle">weight 30%</text>
+
+  <!-- Divider -->
+  <rect x="24" y="356" width="342" height="1" fill="#f3f4f6"/>
+
+  <!-- Sources line -->
+  <text x="24" y="376" font-size="11" fill="#6b7280">Calculated by scanning</text>
+  <text x="151" y="376" font-size="11" font-weight="700" fill="#111827">8 sources</text>
+  <text x="215" y="376" font-size="11" fill="#6b7280">through Gemini 2.5 Flash</text>
+
+  <!-- Sector chips -->
+  <rect x="24" y="390" width="90" height="20" rx="10" fill="#ede9fe"/>
+  <text x="69" y="403" font-size="10" font-weight="600" fill="#6d28d9" text-anchor="middle">💻 Technology</text>
+  <rect x="120" y="390" width="100" height="20" rx="10" fill="#dbeafe"/>
+  <text x="170" y="403" font-size="10" font-weight="600" fill="#1e40af" text-anchor="middle">⚖️ Policy &amp; Reg</text>
+  <rect x="226" y="390" width="88" height="20" rx="10" fill="#dcfce7"/>
+  <text x="270" y="403" font-size="10" font-weight="600" fill="#166534" text-anchor="middle">🏭 Manufacturing</text>
+
+  <!-- Bottom note -->
+  <text x="195" y="440" font-size="10" fill="#d1d5db" text-anchor="middle">AI reasoning is always visible · never a black box</text>
+</svg>

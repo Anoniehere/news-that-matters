@@ -4,11 +4,13 @@ import base64, json, pathlib
 ROOT = pathlib.Path(__file__).parent.parent
 
 readme = (ROOT / "README.md").read_text()
-hero_b64 = base64.b64encode((ROOT / "docs/hero.svg").read_bytes()).decode()
-tabs_b64 = base64.b64encode((ROOT / "docs/card-tabs.svg").read_bytes()).decode()
+hero_b64  = base64.b64encode((ROOT / "docs/hero.svg").read_bytes()).decode()
+tabs_b64  = base64.b64encode((ROOT / "docs/card-tabs.svg").read_bytes()).decode()
+sheet_b64 = base64.b64encode((ROOT / "docs/score-sheet.svg").read_bytes()).decode()
 
-readme = readme.replace("docs/hero.svg",    f"data:image/svg+xml;base64,{hero_b64}")
-readme = readme.replace("docs/card-tabs.svg", f"data:image/svg+xml;base64,{tabs_b64}")
+readme = readme.replace("docs/hero.svg",       f"data:image/svg+xml;base64,{hero_b64}")
+readme = readme.replace("docs/card-tabs.svg",  f"data:image/svg+xml;base64,{tabs_b64}")
+readme = readme.replace("docs/score-sheet.svg",f"data:image/svg+xml;base64,{sheet_b64}")
 
 readme_js = json.dumps(readme)
 
