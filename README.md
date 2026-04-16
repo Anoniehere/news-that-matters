@@ -264,13 +264,19 @@ The ADR format forces a discipline I think all AI product decisions should have:
 
 ## What I'd do next
 
-**Persona selector** — right now the persona is hardcoded as "Silicon Valley tech professional." The interesting version lets you set your own context — VC investor, founder, policy researcher — and re-scores the same 5 stories through a different lens. The pipeline already supports it; the UI doesn't yet.
+This is a versioned roadmap — each version has a clear job to do before the next one starts.
 
-**Deployment** — Railway or Render. The whole thing is 6 LLM calls an hour on the free Gemini tier. Running cost: essentially zero.
+### V1 · AI-powered geopolitical news trend analyzer ✅ *shipped*
+The current build. 12 RSS feeds → semantic clustering → two-pass LLM scoring → 5 scored cards per day with full AI reasoning visible on every card. The core thesis proven: coverage breadth × persona relevance produces a meaningfully better signal than either dimension alone.
 
-**A/B test the formula** — 70/30 was a reasoned starting point, not a measured optimum. With telemetry on which stories users actually tap through, I'd run 60/40 and 80/20 variants and let engagement data pick the weight.
+### V2 · System health monitoring and reliability
+A pipeline that fails silently is worse than one that doesn't run at all. V2 adds a `/health` endpoint with structured pipeline state, alerting if a run exceeds 4 minutes or produces fewer than 3 clusters, retry logic with exponential backoff on LLM quota errors, and a stale-data banner in the UI when the last successful brief is over 2 hours old. The goal: make failure loud, not invisible.
 
-**PWA manifest** — this should be installable. The whole app is one HTML file and a FastAPI server. A service worker and a manifest.json away from living on a home screen.
+### V3 · Evaluation framework for ranking and summarization quality
+Right now the 70/30 formula is a reasoned starting point, not a measured optimum. V3 builds the eval harness to find out if it's right — human-labeled relevance ground truth for 30 days of briefs, automated summarization quality metrics (BERTScore against source articles), and an A/B test runner for formula weight variants (60/40, 80/20). The question V3 answers: is the AI actually picking the right 5 stories?
+
+### V4 · Observability layer for debugging and explainability
+When the pipeline picks story A over story B, why? V4 adds structured scoring traces logged per-run — every cluster's coverage score, persona score, re-rank delta, and final position — stored in SQLite alongside the brief. A diff view shows what changed between today's brief and yesterday's. The score breakdown sheet in the UI deepens to show the full trace. The goal: make the AI's reasoning inspectable by anyone, not just the person who wrote the prompt.
 
 ---
 

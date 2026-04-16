@@ -808,19 +808,83 @@ Splash Screen:
 
 ---
 
-## 10. Out of Scope for MVP (V2 Backlog)
+## 10. Product Roadmap
 
-| Feature | Reason Deferred |
-|---------|----------------|
+Each version has a single job. V(n+1) only starts when V(n)'s job is done and measurably working.
+
+---
+
+### V1 · AI-powered geopolitical news trend analyzer ✅ *Shipped — April 2026*
+
+**Job:** Prove the core thesis — that coverage breadth × persona relevance produces a meaningfully better daily brief than chronological or popularity-ranked news.
+
+| Capability | Status |
+|---|---|
+| 12 RSS feeds → semantic clustering (MiniLM + DBSCAN) | ✅ |
+| Two-pass LLM scoring (batch persona score → re-rank → enrich top 5) | ✅ |
+| Signal Score formula: 0.70 × coverage + 0.30 × persona | ✅ |
+| Swipe-card UI · AI score hero · Why It Matters tab | ✅ |
+| Score breakdown sheet · full reasoning visible | ✅ |
+| SQLite cache · APScheduler hourly refresh | ✅ |
+| Static fallback brief · never shows blank screen | ✅ |
+
+---
+
+### V2 · System health monitoring and reliability
+
+**Job:** Make pipeline failure loud, not invisible. A silent failure that returns a stale brief is indistinguishable from a successful run — which erodes trust faster than an honest error message.
+
+| Capability | Notes |
+|---|---|
+| `/health` endpoint with structured pipeline state | Last run time · article count · cluster count · stale flag |
+| Alerting if pipeline run exceeds 4 minutes | Indicates LLM quota exhaustion or network issue |
+| Retry logic with exponential backoff on quota errors | Gemini free tier has per-minute limits |
+| Stale-data banner in UI when brief is > 2 hours old | User-visible · not hidden in logs |
+| Pipeline run duration logged per execution | Foundation for SLA tracking in V3 |
+
+---
+
+### V3 · Evaluation framework for ranking and summarization quality
+
+**Job:** Answer the question the current build can’t answer — is the AI actually picking the right 5 stories? Is the 70/30 formula the right weight, or just a reasonable guess?
+
+| Capability | Notes |
+|---|---|
+| Human-labeled relevance ground truth (30-day corpus) | Did the top-ranked story deserve rank 1? |
+| Automated summarization quality metrics | BERTScore against source articles · ROUGE-L |
+| Formula weight A/B test runner | 60/40 vs 70/30 vs 80/20 · engagement-driven |
+| Persona score calibration audit | Do Gemini’s persona scores correlate with tap-through? |
+| Eval dashboard (internal) | Per-run quality scores · regression alerts |
+
+---
+
+### V4 · Observability layer for debugging and explainability
+
+**Job:** Make the AI’s reasoning inspectable by anyone — not just the person who wrote the prompt. When the pipeline picks story A over story B, there should be a clear, readable trace of why.
+
+| Capability | Notes |
+|---|---|
+| Structured scoring trace logged per pipeline run | Every cluster: coverage score · persona score · re-rank delta · final rank |
+| Brief diff view — what changed since yesterday? | Additions · drops · rank changes surfaced in UI |
+| Deepened score breakdown sheet | Full trace behind the ↗ chip · not just final scores |
+| LLM prompt · response logged per enrichment call | Auditable · debuggable without re-running pipeline |
+| Explainability API endpoint | `GET /explain/{event_id}` returns full scoring trace as JSON |
+
+---
+
+### Out of scope (not in V1–V4)
+
+| Feature | Reason |
+|---|---|
 | X (Twitter) signal | API costs $100+/mo |
 | LinkedIn signal | No public search API |
-| User accounts / personalization | Adds auth complexity; validate value first |
-| Preset personas (Investor, Founder) | Hardcoded persona first |
-| Push notifications | Requires push infra + auth |
+| User accounts / personalisation | Adds auth complexity; validate value first |
+| Preset personas (Investor, Founder) | Hardcoded persona first; tune after eval in V3 |
+| Push noti| Requires push infra + auth |
 | Audio briefing (TTS) | Not core to value prop |
 | Bookmarks / saved events | Requires persistent storage or auth |
 | International news | US-first, validate PMF |
-| Monetization | Focus on PMF |
+| Monetisation | Focus on PMF |
 
 ---
 
