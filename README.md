@@ -19,6 +19,10 @@
 
 > Deployed on Render · loads in ~30 s on first visit (free tier cold start) · swipe the cards, tap ✦ Why It Matters, open the score breakdown sheet
 
+### 🏢 &nbsp;[Internal demo (Walmart) &nbsp;→](https://puppy.walmart.com/sharing/a0d0ggy/news-that-matters)
+
+> Static prototype hosted on puppy.walmart.com · no install needed · opens instantly in browser
+
 <br>
 
 <img src="docs/hero.svg" alt="News That Matters — swipe card UI showing AI signal score 9.3/10 for Trump-China tariffs story" width="320">
