@@ -1,0 +1,134 @@
+<svg width="390" height="780" viewBox="0 0 390 780" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <radialGradient id="bg1" cx="10%" cy="0%" r="70%"><stop offset="0%" stop-color="#ddd6fe"/><stop offset="55%" stop-color="transparent"/></radialGradient>
+    <radialGradient id="bg2" cx="90%" cy="100%" r="55%"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="50%" stop-color="transparent"/></radialGradient>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient>
+    <linearGradient id="mattersGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#a855f7"/></linearGradient>
+    <linearGradient id="barCov" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(255,255,255,0.9)"/><stop offset="100%" stop-color="rgba(255,255,255,0.6)"/></linearGradient>
+    <linearGradient id="barPer" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(255,255,255,0.9)"/><stop offset="100%" stop-color="rgba(255,255,255,0.6)"/></linearGradient>
+    <filter id="cardShadow" x="-5%" y="-2%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.10)"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.06)"/>
+    </filter>
+    <clipPath id="cardClip"><rect x="16" y="96" width="358" height="638" rx="24"/></clipPath>
+  </defs>
+
+  <!-- App background -->
+  <rect width="390" height="780" fill="#ede9fe"/>
+  <rect width="390" height="780" fill="url(#bg1)"/>
+  <rect width="390" height="780" fill="url(#bg2)"/>
+
+  <!-- Status bar -->
+  <text x="24" y="24" font-size="13" font-weight="600" fill="#111827">9:41</text>
+  <text x="340" y="24" font-size="12" fill="#111827">●●●</text>
+
+  <!-- App header -->
+  <text x="24" y="56" font-size="18" font-weight="800" fill="#111827">News That Matters</text>
+  <circle cx="196" cy="52" r="4" fill="#7c3aed" opacity="0.9"/>
+  <text x="205" y="57" font-size="10" font-weight="600" fill="#7c3aed">LIVE</text>
+
+  <!-- Progress dots -->
+  <circle cx="163" cy="78" r="3" fill="#d8b4fe"/>
+  <rect x="171" y="75" width="20" height="6" rx="3" fill="#7c3aed"/>
+  <circle cx="199" cy="78" r="3" fill="#d8b4fe"/>
+  <circle cx="211" cy="78" r="3" fill="#d8b4fe"/>
+  <circle cx="223" cy="78" r="3" fill="#d8b4fe"/>
+
+  <!-- Card shadow + body -->
+  <rect x="16" y="96" width="358" height="638" rx="24" fill="white" filter="url(#cardShadow)"/>
+
+  <!-- Score hero gradient block -->
+  <rect x="16" y="96" width="358" height="130" rx="0" fill="url(#heroGrad)" clip-path="url(#cardClip)"/>
+  <rect x="16" y="96" width="358" height="8" fill="url(#heroGrad)"/>
+  <!-- round only top corners of hero -->
+  <rect x="16" y="96" width="358" height="130" fill="url(#heroGrad)"/>
+  <rect x="16" y="96" width="358" height="130" rx="24" fill="url(#heroGrad)"/>
+  <rect x="16" y="200" width="358" height="26" fill="url(#heroGrad)"/>
+
+  <!-- Rank watermark -->
+  <text x="290" y="210" font-size="88" font-weight="900" fill="rgba(255,255,255,0.12)" text-anchor="middle">01</text>
+
+  <!-- AI Score label -->
+  <text x="32" y="120" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)" letter-spacing="1.2">🤖 AI SIGNAL SCORE</text>
+
+  <!-- Big score number -->
+  <text x="32" y="172" font-size="54" font-weight="900" fill="white" letter-spacing="-2">9.3</text>
+  <text x="92" y="172" font-size="16" font-weight="600" fill="rgba(255,255,255,0.55)">/10</text>
+
+  <!-- Level pill -->
+  <rect x="32" y="180" width="74" height="22" rx="11" fill="rgba(255,255,255,0.22)"/>
+  <text x="69" y="195" font-size="10" font-weight="800" fill="white" text-anchor="middle">● CRITICAL</text>
+
+  <!-- Right side: mini bars -->
+  <!-- Coverage label -->
+  <text x="220" y="122" font-size="9" font-weight="700" fill="rgba(255,255,255,0.7)">📰 Coverage</text>
+  <rect x="220" y="127" width="130" height="5" rx="2.5" fill="rgba(255,255,255,0.2)"/>
+  <rect x="220" y="127" width="130" height="5" rx="2.5" fill="url(#barCov)"/>
+  <text x="355" y="134" font-size="9" font-weight="700" fill="white" text-anchor="end">100%</text>
+
+  <!-- Persona label -->
+  <text x="220" y="150" font-size="9" font-weight="700" fill="rgba(255,255,255,0.7)">🎯 Persona match</text>
+  <rect x="220" y="155" width="130" height="5" rx="2.5" fill="rgba(255,255,255,0.2)"/>
+  <rect x="220" y="155" width="99" height="5" rx="2.5" fill="url(#barPer)"/>
+  <text x="355" y="162" font-size="9" font-weight="700" fill="white" text-anchor="end">76%</text>
+
+  <!-- Insight chip strip -->
+  <rect x="16" y="226" width="358" height="28" fill="rgba(0,0,0,0.03)"/>
+  <rect x="16" y="253" width="358" height="1" fill="rgba(0,0,0,0.05)"/>
+  <!-- chips -->
+  <rect x="24" y="232" width="60" height="16" rx="8" fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.08)" stroke-width="0.5"/>
+  <text x="54" y="243" font-size="9" font-weight="700" fill="#4b5563" text-anchor="middle">📡 8 src</text>
+  <text x="90" y="243" font-size="10" fill="#d1d5db">·</text>
+  <rect x="98" y="232" width="72" height="16" rx="8" fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.08)" stroke-width="0.5"/>
+  <text x="134" y="243" font-size="9" font-weight="700" fill="#4b5563" text-anchor="middle">📰 100% cov</text>
+  <text x="176" y="243" font-size="10" fill="#d1d5db">·</text>
+  <rect x="184" y="232" width="78" height="16" rx="8" fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.08)" stroke-width="0.5"/>
+  <text x="223" y="243" font-size="9" font-weight="700" fill="#4b5563" text-anchor="middle">🎯 76% match</text>
+  <!-- ↗ button -->
+  <circle cx="358" cy="240" r="11" fill="rgba(124,58,237,0.1)" stroke="rgba(124,58,237,0.2)" stroke-width="1"/>
+  <text x="358" y="244" font-size="11" font-weight="800" fill="#7c3aed" text-anchor="middle">↗</text>
+
+  <!-- Region flags -->
+  <text x="24" y="278" font-size="13">🇺🇸🇨🇳</text>
+  <rect x="60" y="267" width="85" height="17" rx="8" fill="#f3f4f6"/>
+  <text x="102" y="279" font-size="9" font-weight="600" fill="#6b7280" text-anchor="middle">East Asia · Policy</text>
+
+  <!-- Headline -->
+  <text x="24" y="308" font-size="15" font-weight="700" fill="#111827">Trump Threatens China with</text>
+  <text x="24" y="327" font-size="15" font-weight="700" fill="#111827">Tariffs Over Iran Arms Aid</text>
+
+  <!-- Tab bar -->
+  <rect x="24" y="344" width="342" height="32" rx="10" fill="#f3f4f6"/>
+  <!-- What Happened tab (active) -->
+  <rect x="27" y="347" width="152" height="26" rx="8" fill="white"/>
+  <rect x="27" y="347" width="152" height="26" rx="8" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+  <text x="103" y="364" font-size="11" font-weight="600" fill="#111827" text-anchor="middle">What Happened</text>
+  <!-- Why It Matters tab (accent) -->
+  <rect x="183" y="347" width="180" height="26" rx="8" fill="url(#mattersGrad)"/>
+  <text x="273" y="364" font-size="11" font-weight="700" fill="white" text-anchor="middle">✦ Why It Matters</text>
+
+  <!-- Summary text lines -->
+  <text x="24" y="398" font-size="12" fill="#374151">Former President Trump issued tariff warnings to</text>
+  <text x="24" y="415" font-size="12" fill="#374151">China on April 13, 2026, citing alleged arms aid</text>
+  <text x="24" y="432" font-size="12" fill="#374151">to Iran. The move signals a sharp re-escalation of</text>
+  <text x="24" y="449" font-size="12" fill="#374151">US-China trade tensions at a critical moment.</text>
+
+  <!-- Sector chips -->
+  <rect x="24" y="464" width="75" height="20" rx="10" fill="#ede9fe"/>
+  <text x="61" y="477" font-size="10" font-weight="600" fill="#6d28d9" text-anchor="middle">💻 Technology</text>
+  <rect x="105" y="464" width="82" height="20" rx="10" fill="#dbeafe"/>
+  <text x="146" y="477" font-size="10" font-weight="600" fill="#1e40af" text-anchor="middle">⚖️ Policy &amp; Reg</text>
+  <rect x="193" y="464" width="72" height="20" rx="10" fill="#dcfce7"/>
+  <text x="229" y="477" font-size="10" font-weight="600" fill="#166534" text-anchor="middle">🏭 Manuf.</text>
+
+  <!-- Footer -->
+  <rect x="16" y="494" width="358" height="1" fill="rgba(0,0,0,0.05)"/>
+  <text x="24" y="514" font-size="10" font-weight="600" fill="#9ca3af">#1 of 5 signals today</text>
+  <rect x="290" y="500" width="74" height="22" rx="11" fill="#f3f4f6"/>
+  <text x="327" y="515" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">🔗 8 Sources</text>
+
+  <!-- Peek of next card behind -->
+  <rect x="28" y="690" width="334" height="60" rx="20" fill="white" opacity="0.5"/>
+  <rect x="36" y="700" width="200" height="8" rx="4" fill="#e5e7eb"/>
+  <rect x="36" y="716" width="140" height="6" rx="3" fill="#f3f4f6"/>
+</svg>
