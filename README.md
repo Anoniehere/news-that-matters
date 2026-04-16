@@ -43,21 +43,45 @@ This is the part I'm most proud of. Not the UI — the pipeline that decides wha
 
 ```mermaid
 flowchart TD
-    A(["🌐 12 RSS Feeds"])
-    B["📥 Fetch & Cluster\n~200 articles grouped by topic"]
-    C["📊 Filter by Coverage\nTop 15 most-reported stories"]
-    D["🤖 Gemini — Pass 1\nScore all 15 for persona relevance"]
-    E{{"⚖️ Re-rank & Select\n0.70 × coverage  +  0.30 × persona fit"}}
-    F["✨ Gemini — Pass 2\nHeadline · Summary · Why It Matters"]
-    G(["📱 5 cards · scored · explained · yours"])
+    A(["🌐 12 RSS Feeds\nGoogle News · AI · Tech · Finance · Geopolitics"])
 
-    A --> B --> C --> D --> E --> F --> G
+    subgraph FETCH["📥  Step 1 — Fetch & Clean"]
+        B["Concurrent fetch · dedup by URL\n~200 articles · 24 hr window"]
+    end
 
-    style A fill:#ede9fe,stroke:#7c3aed,color:#3b0764
-    style D fill:#fff7ed,stroke:#ea580c,color:#431407
-    style E fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    style F fill:#f0fdf4,stroke:#16a34a,color:#14532d
-    style G fill:#d1fae5,stroke:#059669,color:#064e3b
+    subgraph CLUSTER["🧠  Step 2 — Semantic Clustering"]
+        C1["sentence-transformers MiniLM-L6-v2\nNeural embedding per article"]
+        C2["Cosine similarity matrix\nDBSCAN → topic clusters"]
+        C3(["TF-IDF fallback\nif model offline"])
+        C1 --> C2
+        C3 -.->|if offline| C2
+    end
+
+    subgraph SCORE["📊  Step 3 — Coverage Scoring"]
+        D["Log-normalised article count per cluster\n→ top 15 candidates by editorial breadth"]
+    end
+
+    subgraph LLM["🤖  Step 4 — Two-Pass LLM Enrichment"]
+        E["Pass 1 · 1 batch Gemini call\nSector tags · persona score all 15"]
+        F{{"Re-rank\n0.70 × coverage + 0.30 × persona"}}
+        G["Pass 2 · 5 × Gemini 2.5 Flash\nHeadline · Summary · ✦ Why It Matters\nStructured output via Pydantic"]
+        E --> F --> G
+    end
+
+    H["💾 SQLite cache · APScheduler\nAPI always reads from cache · < 500 ms"]
+    I(["📱 5 AI-scored cards · explained · sourced"])
+
+    A --> FETCH
+    FETCH --> CLUSTER
+    CLUSTER --> SCORE
+    SCORE --> LLM
+    LLM --> H --> I
+
+    style A  fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    style C3 fill:#fef9c3,stroke:#d97706,color:#713f12
+    style F  fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    style G  fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    style I  fill:#d1fae5,stroke:#059669,color:#064e3b
 ```
 
 The key design decision is the **two-pass LLM architecture**. Most obvious approach: call Gemini 5 times on the top 5 stories by article count. The problem: coverage rank ≠ relevance rank. A story covered by 20 regional newspapers might score higher than a story covered by 8 major tech outlets — but the second story is probably more interesting to a Silicon Valley professional.
