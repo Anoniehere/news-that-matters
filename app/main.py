@@ -57,15 +57,18 @@ _scheduler = None
 async def lifespan(app: FastAPI):
     """Startup: init DB, seed if empty, start scheduler. Shutdown: stop scheduler."""
     global _scheduler
+    import threading
     from app.db import has_brief, init_db
     from app.scheduler import build_scheduler, run_pipeline_job
 
     init_db()
 
     if not has_brief():
-        log.info("DB empty — running initial pipeline (this takes ~45s)…")
-        run_pipeline_job()   # blocking on first boot; keeps API from serving 503
-
+        # Run pipeline in background so health check passes immediately.
+        # web/index.html static fallback shows until DB is seeded (~45s).
+        log.info("DB empty — pipeline starting in background thread…")
+        threading.Thread(target=run_pipeline_job, daemon=True).start()
+    
     _scheduler = build_scheduler()
     _scheduler.start()
     log.info("News That Matters API ✓ ready")
