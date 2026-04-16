@@ -15,6 +15,12 @@
 
 <br>
 
+### ▶ &nbsp;[Try the live prototype &nbsp;→](https://news-that-matters-um2s.onrender.com)
+
+> Deployed on Render · loads in ~30 s on first visit (free tier cold start) · swipe the cards, tap ✦ Why It Matters, open the score breakdown sheet
+
+<br>
+
 <img src="docs/hero.svg" alt="News That Matters — swipe card UI showing AI signal score 9.3/10 for Trump-China tariffs story" width="320">
 
 <br><br>
@@ -114,6 +120,8 @@ When the AI gives a story a 9.3, you can see *why*: near-total editorial consens
 ---
 
 ## What you see
+
+**🔗 [Open the live prototype](https://news-that-matters-um2s.onrender.com)** — fully interactive, deployed on Render, free tier. First load may take ~30 seconds if the server is sleeping.
 
 ### The card
 
@@ -267,7 +275,7 @@ The ADR format forces a discipline I think all AI product decisions should have:
 This is a versioned roadmap — each version has a clear job to do before the next one starts.
 
 ### V1 · AI-powered geopolitical news trend analyzer ✅ *shipped*
-The current build. 12 RSS feeds → semantic clustering → two-pass LLM scoring → 5 scored cards per day with full AI reasoning visible on every card. The core thesis proven: coverage breadth × persona relevance produces a meaningfully better signal than either dimension alone.
+**[▶ Try it live](https://news-that-matters-um2s.onrender.com)** · The current build. 12 RSS feeds → semantic clustering → two-pass LLM scoring → 5 scored cards per day with full AI reasoning visible on every card. The core thesis proven: coverage breadth × persona relevance produces a meaningfully better signal than either dimension alone.
 
 ### V2 · System health monitoring and reliability
 A pipeline that fails silently is worse than one that doesn't run at all. V2 adds a `/health` endpoint with structured pipeline state, alerting if a run exceeds 4 minutes or produces fewer than 3 clusters, retry logic with exponential backoff on LLM quota errors, and a stale-data banner in the UI when the last successful brief is over 2 hours old. The goal: make failure loud, not invisible.
