@@ -5,10 +5,14 @@ Stores the latest enriched Brief as JSON. One row is always current
 (is_current=1). New briefs flip the flag atomically to prevent serving
 a partial or stale result during writes.
 
+Also stores pipeline_runs for the logs & traces dashboard.
+
 Public API:
     init_db()                    — create tables if not exists
     save_brief(brief, duration)  — persist + flip is_current atomically
     load_current_brief()         — returns (Brief, meta) or (None, None)
+    log_pipeline_run(...)        — append a run record to pipeline_runs
+    get_recent_runs(limit)       — last N run rows as list[dict]
 """
 from __future__ import annotations
 
@@ -40,6 +44,25 @@ _CREATE_IDX = """
 CREATE INDEX IF NOT EXISTS idx_briefs_current ON briefs (is_current);
 """
 
+_CREATE_RUNS_TABLE = """
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at       TEXT    NOT NULL,
+    finished_at      TEXT    NOT NULL,
+    duration_s       REAL    NOT NULL DEFAULT 0,
+    status           TEXT    NOT NULL,
+    articles_fetched INTEGER NOT NULL DEFAULT 0,
+    clusters_found   INTEGER NOT NULL DEFAULT 0,
+    events_enriched  INTEGER NOT NULL DEFAULT 0,
+    step_timings     TEXT    NOT NULL DEFAULT '{}',
+    error_message    TEXT
+);
+"""
+
+_CREATE_RUNS_IDX = """
+CREATE INDEX IF NOT EXISTS idx_runs_started ON pipeline_runs (started_at DESC);
+"""
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
@@ -61,6 +84,8 @@ def init_db() -> None:
     with _conn() as con:
         con.execute(_CREATE_TABLE)
         con.execute(_CREATE_IDX)
+        con.execute(_CREATE_RUNS_TABLE)
+        con.execute(_CREATE_RUNS_IDX)
     log.info("DB: initialised at %s", DB_PATH.resolve())
 
 
@@ -125,3 +150,70 @@ def has_brief() -> bool:
             "SELECT COUNT(*) FROM briefs WHERE is_current = 1"
         ).fetchone()[0]
     return count > 0
+
+
+def log_pipeline_run(
+    *,
+    started_at: str,
+    finished_at: str,
+    duration_s: float,
+    status: str,
+    articles_fetched: int = 0,
+    clusters_found: int = 0,
+    events_enriched: int = 0,
+    step_timings: dict | None = None,
+    error_message: str | None = None,
+) -> None:
+    """
+    Append one pipeline run record to pipeline_runs.
+
+    status: 'success' | 'quota_blocked' | 'error'
+    step_timings: {"fetch": s, "cluster": s, "score": s, "enrich": s}
+    """
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO pipeline_runs
+                (started_at, finished_at, duration_s, status,
+                 articles_fetched, clusters_found, events_enriched,
+                 step_timings, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                started_at, finished_at, duration_s, status,
+                articles_fetched, clusters_found, events_enriched,
+                json.dumps(step_timings or {}), error_message,
+            ),
+        )
+    log.info("DB: run logged — status=%s  %.1fs", status, duration_s)
+
+
+def get_recent_runs(limit: int = 30) -> list[dict]:
+    """Return the last `limit` pipeline runs, newest first."""
+    with _conn() as con:
+        rows = con.execute(
+            """
+            SELECT id, started_at, finished_at, duration_s, status,
+                   articles_fetched, clusters_found, events_enriched,
+                   step_timings, error_message
+            FROM pipeline_runs
+            ORDER BY started_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [
+        {
+            "id":               r[0],
+            "started_at":       r[1],
+            "finished_at":      r[2],
+            "duration_s":       r[3],
+            "status":           r[4],
+            "articles_fetched": r[5],
+            "clusters_found":   r[6],
+            "events_enriched":  r[7],
+            "step_timings":     json.loads(r[8]),
+            "error_message":    r[9],
+        }
+        for r in rows
+    ]

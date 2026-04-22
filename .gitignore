@@ -29,5 +29,8 @@ CONTEXT.md
 # Pipeline HTML debug output — transient
 output/*.html
 
+# Server logs — runtime only
+.server.log
+
 # macOS
 .DS_Store

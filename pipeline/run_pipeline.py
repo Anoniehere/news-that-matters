@@ -37,6 +37,14 @@ class PipelineResult:
     brief: Brief | None
     quota_blocked: bool
     duration_s: float
+    # Per-step wall-clock seconds; empty when quota_blocked=True
+    step_timings: dict[str, float] = None
+    articles_fetched: int = 0
+    clusters_found: int = 0
+
+    def __post_init__(self):
+        if self.step_timings is None:
+            self.step_timings = {}
 
 
 def run_full_pipeline() -> PipelineResult:
@@ -69,20 +77,33 @@ def run_full_pipeline() -> PipelineResult:
     from pipeline.step3_score import score_clusters
     from pipeline.step4_enrich import enrich_clusters
 
+    step_timings: dict[str, float] = {}
+
+    def _timed(label: str, fn):
+        """Run fn(), record its wall-clock time in step_timings."""
+        t = time.time()
+        result = fn()
+        step_timings[label] = round(time.time() - t, 2)
+        return result
+
     log.info("Pipeline ▶ Step 1 — fetching articles…")
-    fetch = fetch_all_feeds()
+    fetch = _timed("fetch", fetch_all_feeds)
 
     log.info("Pipeline ▶ Step 2 — embedding + clustering…")
-    embeddings, eps = embed_articles(fetch.articles)
-    clusters = retry_with_looser_eps(fetch.articles, embeddings, base_eps=eps)
+    def _cluster():
+        embeddings, eps = embed_articles(fetch.articles)
+        return retry_with_looser_eps(fetch.articles, embeddings, base_eps=eps)
+    clusters = _timed("cluster", _cluster)
 
     log.info("Pipeline ▶ Step 3 — trend scoring…")
-    trend = score_clusters(clusters)
+    trend = _timed("score", lambda: score_clusters(clusters))
 
     log.info("Pipeline ▶ Step 4 — LLM enrichment…")
-    brief = enrich_clusters(trend)
+    brief = _timed("enrich", lambda: enrich_clusters(trend))
 
     duration_s = time.time() - t0
+    n_articles = fetch.total_count
+    n_clusters = clusters.total_clusters
 
     # Quota got exhausted during this run (enrich returned empty brief)
     if not brief.events and is_quota_exhausted():
@@ -90,10 +111,16 @@ def run_full_pipeline() -> PipelineResult:
             "Pipeline: quota exhausted mid-run after %.1fs — "
             "returning quota_blocked so scheduler keeps cached brief.", duration_s
         )
-        return PipelineResult(brief=None, quota_blocked=True, duration_s=duration_s)
+        return PipelineResult(
+            brief=None, quota_blocked=True, duration_s=duration_s,
+            step_timings=step_timings, articles_fetched=n_articles, clusters_found=n_clusters,
+        )
 
     log.info(
         "Pipeline ✓ complete in %.1fs — %d events enriched",
         duration_s, len(brief.events),
     )
-    return PipelineResult(brief=brief, quota_blocked=False, duration_s=duration_s)
+    return PipelineResult(
+        brief=brief, quota_blocked=False, duration_s=duration_s,
+        step_timings=step_timings, articles_fetched=n_articles, clusters_found=n_clusters,
+    )
